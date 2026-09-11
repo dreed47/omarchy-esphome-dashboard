@@ -53,13 +53,16 @@ echo "$YOUR_TOKEN" | node bin/esphome-dashboard ha-token \
   --base-url https://homeassistant.local:8123
 ```
 
-Either way it's saved to `~/.config/omarchy/esphome-dashboard/ha.json`
-(mode 600) — separate from `config.json`, on your machine only, used only
-for calls to that base URL. Add `--verify-tls` if your instance has a valid
+Either way, the token itself is stored in your system keyring (the
+freedesktop Secret Service — `gnome-keyring` on Omarchy, already running as
+part of the base install), not written to disk in plain text anywhere.
+`~/.config/omarchy/esphome-dashboard/ha.json` only holds the non-secret
+base URL and TLS setting. Add `--verify-tls` if your instance has a valid
 certificate; without it, verification is skipped (many local HA instances
 use a self-signed or expired cert — same LAN, same box, but worth knowing).
 
-Remove it from the popup's **Forget** button, or `node bin/esphome-dashboard ha-forget`.
+Remove it from the popup's **Forget** button, or `node bin/esphome-dashboard ha-forget`
+— both clear the keyring entry and the base URL/TLS setting.
 
 Once connected, any `button.*` entity HA has for a device — restart, sync,
 query status, a ratgdo's toggle door, a tag reader's write/clean/cancel-tag
@@ -74,6 +77,9 @@ sync, query) are single-click.
 - Node.js — `omarchy pkg add nodejs`. The popup tells you if it is missing.
 - `avahi-browse` (mDNS) — Omarchy already installs and enables Avahi for
   printer/network discovery, so this is normally already there.
+- Only if you connect Home Assistant: `secret-tool` (from `libsecret`) and
+  a running Secret Service (`gnome-keyring`) to store the token — both are
+  already part of a standard Omarchy install.
 
 ## Install
 

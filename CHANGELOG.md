@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.4.4] - 2026-09-11
+
+### Security / Changed
+
+- **The Home Assistant access token is no longer stored in a file at all.**
+  After three rounds of marketplace security review on hardening a
+  from-scratch credential file (`ha.json`), the reviewer's own suggested
+  alternative was adopted instead: the token now lives in the freedesktop
+  Secret Service (`gnome-keyring` — a hard dependency of the `omarchy`
+  package itself, so this is guaranteed present, not optional), stored and
+  retrieved via `secret-tool` (a trusted absolute path,
+  `/usr/bin/secret-tool`) with the token passed over stdin/stdout, never
+  argv. `ha.json` now holds only the non-secret base URL and TLS setting.
+  This removes the whole class of directory-symlink/TOCTOU concern a
+  from-scratch file store raises, rather than continuing to narrow it.
+- Existing installs migrate silently and automatically on first read: a
+  legacy `ha.json` with the token still in it is moved into the keyring
+  and the file is rewritten without it — no need to re-enter your token
+  after updating.
+- `ha-forget` and the popup's **Forget** button now also clear the
+  keyring entry.
+
 ## [0.4.3] - 2026-09-11
 
 ### Security
