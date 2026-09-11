@@ -1,5 +1,39 @@
 # Changelog
 
+## [0.4.3] - 2026-09-11
+
+### Security
+
+Third round of marketplace review on the Home Assistant token file
+(`ha.json`): the 0.4.2 fix protected the file itself against a symlink at
+its own final path component, but a pathname-based `mkdirSync`/
+`chmodSync`/`openSync`/`renameSync` still resolves each *ancestor*
+directory (`~/.config`, `~/.config/omarchy`, `.../esphome-dashboard`)
+through the normal symlink-following path lookup.
+
+- Before creating or using the token file's directory, every already-
+  existing ancestor from `$HOME` down is now checked with `lstatSync`:
+  refuses to proceed if any of them is a symlink or not owned by this
+  user, re-checked again immediately before the temp file is opened.
+  Node's core `fs` has no `openat`/`renameat`-relative-to-a-directory-
+  descriptor API — the one thing that closes this fully — so this narrows
+  the window rather than eliminating it; doing so requires an attacker
+  who can already write into one of these directories as this same user,
+  which is already code-execution parity with this process.
+- Reading the token file now also refuses it if it's hardlinked from
+  anywhere else (`nlink !== 1`) or has any group/other permission bits
+  set, on top of the existing regular-file/owner/size checks.
+- Writing now `fsync`s the temp file's data before closing it, and
+  `fsync`s the containing directory after the rename, so the atomic
+  replace is durable rather than just atomic.
+
+Verified against two real attack simulations, not just unit tests: (1) a
+symlink planted at `ha.json` itself is refused on read and its directory
+entry is atomically replaced (never followed) on write, leaving the
+symlink's target file completely untouched; (2) the `esphome-dashboard`
+directory itself replaced with a symlink to another directory is refused
+outright before anything is written, leaving that directory empty.
+
 ## [0.4.2] - 2026-09-11
 
 ### Security
