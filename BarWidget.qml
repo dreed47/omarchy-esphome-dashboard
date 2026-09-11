@@ -104,10 +104,11 @@ BarWidget {
       anchors.centerIn: parent
       spacing: Style.spaceReal(5)
 
-      // Microchip glyph (FA ).
+      // Wifi glyph (FA , classic FA4 codepoint -  "microchip" is FA5+
+      // and does not render through this box's v4-compatibility icon font).
       Text {
         anchors.verticalCenter: parent.verticalCenter
-        text: ""
+        text: ""
         color: button.pillColor
         opacity: root.cliMissing ? 0.5 : 1
         font.family: button.fontFamily

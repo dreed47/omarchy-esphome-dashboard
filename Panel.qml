@@ -32,7 +32,7 @@ Panel {
   readonly property string worstState: svc ? String(svc.worstState || "ok") : "ok"
   readonly property string summary: svc ? String(svc.summary || "") : ""
 
-  readonly property string chipGlyph: String.fromCharCode(0xf2db)
+  readonly property string chipGlyph: String.fromCharCode(0xf1eb)   // FA4 wifi
   readonly property string bullet: String.fromCharCode(0x2022)
 
   // ---- bar-pill tooltip / right-click text ----------------------
