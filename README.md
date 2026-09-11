@@ -117,3 +117,8 @@ truth; the service decides what's worth an alert.
 ## License
 
 MIT
+
+`EsphomeMark.png` is ESPHome's own logo, from the
+[home-assistant/brands](https://github.com/home-assistant/brands) repository
+(the icon set Home Assistant itself uses to represent every integration),
+used here to identify what the plugin monitors.

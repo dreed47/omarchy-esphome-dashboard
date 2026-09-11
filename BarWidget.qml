@@ -104,16 +104,39 @@ BarWidget {
       anchors.centerIn: parent
       spacing: Style.spaceReal(5)
 
-      // Wifi glyph (FA , classic FA4 codepoint -  "microchip" is FA5+
-      // and does not render through this box's v4-compatibility icon font).
-      Text {
+      // ESPHome's own mark (the real brand icon, not a generic glyph -
+      // FontAwesome has nothing ESPHome-specific, and the FA5 "microchip"
+      // codepoint silently fails to render through this box's icon font).
+      // A small status dot carries the accent/urgent signal the old glyph
+      // carried via its own color, since the brand mark stays true-color.
+      Item {
         anchors.verticalCenter: parent.verticalCenter
-        text: ""
-        color: button.pillColor
+        readonly property int side: Math.max(12, Math.round((root.bar ? root.bar.barSize : 30) * 0.62))
+        width: side
+        height: side
         opacity: root.cliMissing ? 0.5 : 1
-        font.family: button.fontFamily
-        font.pixelSize: button.fontSize
-        renderType: Text.NativeRendering
+
+        Image {
+          anchors.fill: parent
+          source: Qt.resolvedUrl("EsphomeMark.png")
+          fillMode: Image.PreserveAspectFit
+          smooth: true
+          sourceSize.width: width * 2
+          sourceSize.height: height * 2
+        }
+        Rectangle {
+          visible: !root.cliMissing && root.worstState !== "ok"
+          width: Math.max(5, Math.round(parent.side * 0.32))
+          height: width
+          radius: width / 2
+          anchors.right: parent.right
+          anchors.bottom: parent.bottom
+          anchors.rightMargin: -width * 0.15
+          anchors.bottomMargin: -width * 0.15
+          color: button.pillColor
+          border.width: 1
+          border.color: root.bar ? root.bar.background : "#14171c"
+        }
       }
 
       // "online/total" count.

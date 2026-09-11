@@ -150,12 +150,24 @@ Panel {
         Item {
           width: parent.width
           height: Style.space(24)
-          Text {
-            id: titleText
+          Image {
+            id: titleMark
             anchors.left: parent.left
             anchors.leftMargin: Style.space(4)
             anchors.verticalCenter: parent.verticalCenter
-            text: root.chipGlyph + "  ESPHome Dashboard"
+            width: Style.space(18); height: Style.space(18)
+            source: Qt.resolvedUrl("EsphomeMark.png")
+            fillMode: Image.PreserveAspectFit
+            smooth: true
+            sourceSize.width: width * 2
+            sourceSize.height: height * 2
+          }
+          Text {
+            id: titleText
+            anchors.left: titleMark.right
+            anchors.leftMargin: Style.space(6)
+            anchors.verticalCenter: parent.verticalCenter
+            text: "ESPHome Dashboard"
             color: root.fg
             font.family: root.mono
             font.pixelSize: Style.font.body
