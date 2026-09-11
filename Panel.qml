@@ -65,7 +65,8 @@ Panel {
     root.draftToken = ""
   }
   function submitHaSettings() {
-    if (!svc || root.draftBaseUrl === "" || root.draftToken === "") return
+    if (!svc || root.draftBaseUrl === "") return
+    if (root.draftToken === "" && !root.haConfigured) return   // nothing to reuse yet
     svc.saveHaToken(root.draftBaseUrl, root.draftToken, root.draftVerifyTls)
   }
   function forgetHaSettings() {
@@ -621,7 +622,8 @@ Panel {
             spacing: Style.space(8)
             EdMiniButton {
               label: root.haSaveState === "saving" ? "Saving…" : "Save"
-              enabled: root.haSaveState !== "saving" && root.draftBaseUrl !== "" && root.draftToken !== ""
+              enabled: root.haSaveState !== "saving" && root.draftBaseUrl !== ""
+                && (root.draftToken !== "" || root.haConfigured)
               onTapped: root.submitHaSettings()
             }
             EdMiniButton {

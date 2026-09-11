@@ -107,8 +107,16 @@ async function cmdPing(a) {
 async function cmdHaToken(a) {
     if (!a["base-url"]) die("ha-token: --base-url is required")
     const line = await readLineFromStdin()
-    const token = String(line || "").trim()
-    if (!token) die("ha-token: no token on stdin (pipe it in: echo \"$TOKEN\" | esphome-dashboard ha-token ...)")
+    let token = String(line || "").trim()
+
+    // A blank line means "keep the current token" - only meaningful (and
+    // only allowed) when one is already saved, e.g. changing just the base
+    // URL or the TLS setting from the popup's settings form.
+    if (!token) {
+        const existing = io.readHaConfig()
+        if (!existing) die("ha-token: no token on stdin, and no saved token to reuse")
+        token = existing.token
+    }
 
     const cfg = { baseUrl: normalizeBaseUrl(a["base-url"]), token, verifyTls: !!a["verify-tls"] }
     const r = await io.haWhoAmI(cfg)

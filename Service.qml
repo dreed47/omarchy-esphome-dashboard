@@ -351,11 +351,14 @@ Item {
       Qt.callLater(root.pollSoon)
     }
   }
+  // `token` may be "" to mean "keep the current one" (changing just the
+  // base URL or the TLS setting) - only meaningful when already configured.
   function saveHaToken(baseUrl, token, verifyTls) {
-    if (haTokenProc.running || !baseUrl || !token) return
+    if (haTokenProc.running || !baseUrl) return
+    if (!token && !root.haConfigured) return
     root.haSaveState = "saving"
     root.haSaveError = ""
-    haTokenProc.pendingToken = String(token)
+    haTokenProc.pendingToken = String(token || "")
     var cmd = ["node", root.cli, "ha-token", "--base-url", String(baseUrl)]
     if (verifyTls) cmd.push("--verify-tls")
     haTokenProc.command = cmd
