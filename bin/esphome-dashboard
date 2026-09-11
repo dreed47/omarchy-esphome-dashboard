@@ -175,4 +175,13 @@ async function main() {
     }
 }
 
-main().catch((e) => die(String((e && e.stack) || e), 1))
+// `ha-token` reads stdin via readline, which puts process.stdin into flowing
+// mode - an active handle that keeps the event loop alive even after the
+// interface is closed, for as long as the writer keeps the pipe open (the
+// QML settings form never closes it, deliberately, the same way Omarchy's
+// own Wi-Fi panel never closes the pipe it writes a password to). A plain
+// `echo "$TOKEN" | ...` closes its end and the process exits fine regardless,
+// which is why this only showed up through the popup, not the CLI. Force an
+// explicit exit once the real work is done instead of waiting for the event
+// loop to drain on its own.
+main().then(() => process.exit(0)).catch((e) => die(String((e && e.stack) || e), 1))
