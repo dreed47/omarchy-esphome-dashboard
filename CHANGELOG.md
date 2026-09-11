@@ -1,5 +1,30 @@
 # Changelog
 
+## [0.4.0] - 2026-09-11
+
+### Added
+
+- **Generic Home Assistant button actions** — any `button.*` entity HA has
+  for a device (restart, sync, query status, a ratgdo's toggle door, a tag
+  reader's write/clean/cancel-tag actions, ...) now shows up as a row of
+  buttons on that device's card, calling the same `button.press` service
+  HA's own UI uses. Labels are cleaned up from HA's often-redundant
+  friendly names down to just the action ("Restart", "Toggle door").
+  Buttons that move something physical or mutate data (toggle door,
+  write/clean/cancel tag) require a confirm click first; routine ones
+  (restart, sync, query) are single-click. New CLI: `press-button`.
+
+### Fixed
+
+- Settings form's Save button never enabled when only the base URL changed
+  and the token field was left blank — blank now correctly means "keep the
+  saved token", at every layer (UI, service, CLI), matching what the hint
+  text already promised.
+- Settings form's Save button could get stuck on "Saving…" forever: the
+  CLI's stdin reader kept the Node process alive even after finishing, so
+  the QML side never saw it exit. The CLI now exits explicitly once its
+  work is done.
+
 ## [0.3.0] - 2026-09-11
 
 ### Added

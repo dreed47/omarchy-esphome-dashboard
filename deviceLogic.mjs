@@ -169,7 +169,7 @@ export function onlineMap(devices) {
 
 // ---- CLI arg parsing ------------------------------------------------
 
-export const COMMANDS = ["status", "devices", "ping", "ha-token", "ha-forget", "ha-status", "update-install"]
+export const COMMANDS = ["status", "devices", "ping", "ha-token", "ha-forget", "ha-status", "update-install", "press-button"]
 
 const VALUE_FLAGS = new Set(["--host", "--port", "--timeout", "--base-url", "--entity"])
 const BOOL_FLAGS = new Set(["--json", "--verify-tls"])
@@ -203,6 +203,8 @@ usage:
   esphome-dashboard ha-status [--json]        raw update.* entities from Home Assistant
   esphome-dashboard update-install --entity update.xxx [--json]
                                               ask Home Assistant to install that update
+  esphome-dashboard press-button --entity button.xxx [--json]
+                                              ask Home Assistant to press that button
 
 Discovery is mDNS (_esphomelib._tcp, the service every ESPHome device
 advertises for Home Assistant's native API) - no configuration, no

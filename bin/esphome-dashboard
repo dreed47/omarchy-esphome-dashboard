@@ -11,6 +11,7 @@ import {
 
 import {
     parseUpdateEntities, mergeFirmwareUpdates, haConfigured, normalizeBaseUrl,
+    parseButtonEntities, mergeButtons,
 } from "../haLogic.mjs"
 
 import * as io from "../lib/io.mjs"
@@ -53,11 +54,11 @@ async function cmdDevices(a) {
 async function buildStatus(healthTimeoutMs) {
     const raw = await discover()
     const health = await io.healthCheckAll(raw, healthTimeoutMs)
-    let devices = mergeHealth(raw, health).map((d) => ({ ...d, alerts: deviceAlerts(d), firmwareUpdate: null }))
+    let devices = mergeHealth(raw, health).map((d) => ({ ...d, alerts: deviceAlerts(d), firmwareUpdate: null, buttons: [] }))
 
     // Home Assistant integration is entirely optional and best-effort: no
-    // saved token, or HA unreachable, just means no firmwareUpdate data -
-    // it never fails the whole status call.
+    // saved token, or HA unreachable, just means no firmwareUpdate/buttons
+    // data - it never fails the whole status call.
     let haConnected = false
     const haCfg = io.readHaConfig()
     if (haConfigured(haCfg)) {
@@ -65,6 +66,7 @@ async function buildStatus(healthTimeoutMs) {
         if (r.ok && Array.isArray(r.body)) {
             haConnected = true
             devices = mergeFirmwareUpdates(devices, parseUpdateEntities(r.body))
+            devices = mergeButtons(devices, parseButtonEntities(r.body))
         }
     }
 
@@ -154,6 +156,15 @@ async function cmdUpdateInstall(a) {
     outJson({ requested: true, entity: a.entity })
 }
 
+async function cmdPressButton(a) {
+    if (!a.entity) die("press-button: --entity is required (e.g. button.ratgdov25i_cca36a_restart)")
+    const cfg = io.readHaConfig()
+    if (!haConfigured(cfg)) die("no Home Assistant token saved - run: ha-token --base-url <url>")
+    const r = await io.haCallService(cfg, "button", "press", { entity_id: a.entity })
+    if (!r.ok) die("button press failed: " + (r.error || ("HTTP " + r.status + " " + String(r.raw || "").slice(0, 300))))
+    outJson({ requested: true, entity: a.entity })
+}
+
 async function main() {
     let a
     try {
@@ -172,6 +183,7 @@ async function main() {
         case "ha-forget": return cmdHaForget()
         case "ha-status": return cmdHaStatus(a)
         case "update-install": return cmdUpdateInstall(a)
+        case "press-button": return cmdPressButton(a)
     }
 }
 

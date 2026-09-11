@@ -42,6 +42,20 @@ Panel {
     if (svc) svc.installUpdate(entityId)
   }
 
+  // ---- Home Assistant button.* actions (restart, sync, toggle door, ...)
+  readonly property string buttonPressState: svc ? String(svc.buttonPressState || "idle") : "idle"
+  readonly property string buttonPressEntity: svc ? String(svc.buttonPressEntity || "") : ""
+  readonly property string buttonPressError: svc ? String(svc.buttonPressError || "") : ""
+
+  // "<deviceName>|<entityId>" of the button currently showing its confirm
+  // row - a device can have more than one risky button, so keying by name
+  // alone (like confirmInstallFor) isn't enough here.
+  property string confirmButtonFor: ""
+  function pressButton(entityId) {
+    root.confirmButtonFor = ""
+    if (svc) svc.pressButton(entityId)
+  }
+
   // ---- Home Assistant settings form -----------------------------
   readonly property bool haConfigured: svc ? svc.haConfigured === true : false
   readonly property string haBaseUrl: svc ? String(svc.haBaseUrl || "") : ""
@@ -449,6 +463,61 @@ Panel {
                     }
                   }
                 }
+
+                // ---- Phase 2: Home Assistant button.* actions -----------
+                // Restart/sync/query buttons press on a single click; ones
+                // that move the physical world (ratgdo's toggle door) or
+                // mutate data (NFC write/clean/cancel) show an inline
+                // confirm first, same shape as the firmware-install confirm.
+                Flow {
+                  id: buttonsFlow
+                  visible: (modelData.buttons || []).length > 0
+                  width: dRow.width
+                  spacing: Style.space(6)
+                  topPadding: Style.space(2)
+                  property string deviceName: modelData.name
+                  property string deviceFriendly: modelData.friendlyName
+
+                  Repeater {
+                    model: modelData.buttons || []
+                    delegate: Row {
+                      required property var modelData
+                      readonly property string btnKey: buttonsFlow.deviceName + "|" + modelData.entityId
+                      visible: root.confirmButtonFor !== btnKey
+                      EdMiniButton {
+                        label: modelData.label + (root.buttonPressState === "pressing" && root.buttonPressEntity === modelData.entityId ? "…" : "")
+                        danger: false
+                        enabled: root.buttonPressState !== "pressing"
+                        onTapped: modelData.risky ? (root.confirmButtonFor = btnKey) : root.pressButton(modelData.entityId)
+                      }
+                    }
+                  }
+                  Repeater {
+                    model: modelData.buttons || []
+                    delegate: Row {
+                      required property var modelData
+                      readonly property string btnKey: buttonsFlow.deviceName + "|" + modelData.entityId
+                      visible: root.confirmButtonFor === btnKey
+                      spacing: Style.space(6)
+                      Text {
+                        text: modelData.label + " on " + buttonsFlow.deviceFriendly + "?"
+                        color: root.fg
+                        font.family: root.mono
+                        font.pixelSize: Style.font.caption - 1
+                        anchors.verticalCenter: parent.verticalCenter
+                      }
+                      EdMiniButton {
+                        label: "Confirm"
+                        danger: true
+                        onTapped: root.pressButton(modelData.entityId)
+                      }
+                      EdMiniButton {
+                        label: "Cancel"
+                        onTapped: root.confirmButtonFor = ""
+                      }
+                    }
+                  }
+                }
               }
             }
           }
@@ -468,6 +537,15 @@ Panel {
           width: parent.width
           wrapMode: Text.WordWrap
           text: root.installError
+          color: root.urgent
+          font.family: root.mono
+          font.pixelSize: Style.font.caption - 1
+        }
+        Text {
+          visible: root.buttonPressState === "error" && root.buttonPressError !== ""
+          width: parent.width
+          wrapMode: Text.WordWrap
+          text: root.buttonPressError
           color: root.urgent
           font.family: root.mono
           font.pixelSize: Style.font.caption - 1

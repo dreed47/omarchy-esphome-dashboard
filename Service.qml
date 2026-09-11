@@ -324,6 +324,41 @@ Item {
     installProc.running = true
   }
 
+  // ---- Phase 2: press a Home Assistant button.* entity ---------------
+  //
+  // Generic action buttons surfaced from HA (device restart, ratgdo's
+  // "toggle door", tag-reader NFC actions, ...) - same `button.press`
+  // service HA's own UI calls. One in flight at a time, same as installs;
+  // `buttonPressEntity` says which one so the popup can spinner just that
+  // button rather than the whole card.
+  property string buttonPressState: "idle"   // idle | pressing | error
+  property string buttonPressEntity: ""
+  property string buttonPressError: ""
+  Process {
+    id: buttonPressProc
+    stdout: StdioCollector { waitForEnd: true }
+    stderr: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: {
+        var e = String(text).trim().replace(/^esphome-dashboard:\s*/, "")
+        if (e !== "") root.buttonPressError = e
+      }
+    }
+    onExited: function (code) {
+      root.buttonPressState = code === 0 ? "idle" : "error"
+      if (code === 0) root.buttonPressEntity = ""
+      Qt.callLater(root.pollSoon)
+    }
+  }
+  function pressButton(entityId) {
+    if (buttonPressProc.running || !entityId) return
+    root.buttonPressState = "pressing"
+    root.buttonPressEntity = String(entityId)
+    root.buttonPressError = ""
+    buttonPressProc.command = ["node", root.cli, "press-button", "--entity", String(entityId), "--json"]
+    buttonPressProc.running = true
+  }
+
   // ---- Phase 2: save / forget the Home Assistant token, from the popup's
   // settings form --------------------------------------------------
   //
@@ -380,6 +415,7 @@ Item {
     target: "esphome-dashboard"
     function refresh(): void { Qt.callLater(root.poll) }
     function installUpdate(entityId: string): void { root.installUpdate(entityId) }
+    function pressButton(entityId: string): void { root.pressButton(entityId) }
     function saveHaToken(baseUrl: string, token: string): void { root.saveHaToken(baseUrl, token, false) }
     function forgetHaToken(): void { root.forgetHaToken() }
     function status(): string {
@@ -396,6 +432,9 @@ Item {
         haBaseUrl: root.haBaseUrl,
         haVerifyTls: root.haVerifyTls,
         installState: root.installState,
+        buttonPressState: root.buttonPressState,
+        buttonPressEntity: root.buttonPressEntity,
+        buttonPressError: root.buttonPressError,
         haSaveState: root.haSaveState,
         haSaveError: root.haSaveError
       })

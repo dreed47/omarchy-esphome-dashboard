@@ -3,6 +3,7 @@ import assert from "node:assert/strict"
 
 import {
     parseUpdateEntities, matchDeviceForEntity, mergeFirmwareUpdates,
+    parseButtonEntities, isRiskyButton, mergeButtons,
     haConfigured, normalizeBaseUrl,
 } from "../haLogic.mjs"
 
@@ -103,6 +104,102 @@ test("haConfigured", () => {
     assert.equal(haConfigured({ baseUrl: "https://x" }), false)
     assert.equal(haConfigured({ token: "t" }), false)
     assert.equal(haConfigured(null), false)
+})
+
+// Shaped from a real David-provided /api/states dump: tag readers, a ratgdo
+// garage door controller, and unrelated button.* entities from the rest of
+// the house that must NOT get pulled in.
+const BUTTON_STATES = [
+    {
+        entity_id: "button.tagreader_bedroom_restart",
+        state: "unknown",
+        attributes: { friendly_name: "Tagreader-Bedroom TagReader Bedroom Restart", device_class: "restart" },
+    },
+    {
+        entity_id: "button.write_tag_random",
+        state: "unknown",
+        attributes: { friendly_name: "Tagreader-Bedroom Write Tag Random" },
+    },
+    {
+        entity_id: "button.clean_tag",
+        state: "unknown",
+        attributes: { friendly_name: "Tagreader-Bedroom Clean Tag" },
+    },
+    {
+        entity_id: "button.cancel_writing",
+        state: "unknown",
+        attributes: { friendly_name: "Tagreader-Bedroom Cancel writing" },
+    },
+    {
+        entity_id: "button.ratgdov25i_cca36a_restart",
+        state: "unknown",
+        attributes: { friendly_name: "Garage Door Restart", device_class: "restart" },
+    },
+    {
+        entity_id: "button.ratgdov25i_cca36a_toggle_door",
+        state: "unknown",
+        attributes: { friendly_name: "Garage Door Toggle door" },
+    },
+    {
+        entity_id: "button.ratgdov25i_cca36a_query_status",
+        state: "unknown",
+        attributes: { friendly_name: "Garage Door Query status" },
+    },
+    {
+        entity_id: "button.ratgdov25i_cca36a_sync",
+        state: "unknown",
+        attributes: { friendly_name: "Garage Door Sync" },
+    },
+    // Unrelated house entities that happen to also be button.* - must not
+    // attach to any ESPHome device.
+    { entity_id: "button.living_room_tablet_reboot", state: "unknown", attributes: { friendly_name: "Living Room Tablet Reboot" } },
+]
+
+const BUTTON_DEVICES = [
+    { name: "tagreader-bedroom", friendlyName: "Tagreader-Bedroom" },
+    // mDNS friendly name is just "ratgdo" - HA's own button friendly_names
+    // use "Garage Door" instead, which isn't derivable from the device
+    // record at all, only from the buttons' own shared word-prefix.
+    { name: "ratgdov25i-cca36a", friendlyName: "ratgdo" },
+    { name: "stairlights", friendlyName: "StairLights" },
+]
+
+test("parseButtonEntities: only button.* entities", () => {
+    const list = parseButtonEntities(BUTTON_STATES)
+    assert.equal(list.length, 9)
+    assert.equal(parseButtonEntities([]).length, 0)
+    assert.equal(parseButtonEntities(null).length, 0)
+})
+
+test("isRiskyButton: physical/destructive actions are risky, routine ones aren't", () => {
+    assert.equal(isRiskyButton({ entityId: "button.ratgdov25i_cca36a_toggle_door" }), true)
+    assert.equal(isRiskyButton({ entityId: "button.write_tag_random" }), true)
+    assert.equal(isRiskyButton({ entityId: "button.clean_tag" }), true)
+    assert.equal(isRiskyButton({ entityId: "button.cancel_writing" }), true)
+    assert.equal(isRiskyButton({ entityId: "button.ratgdov25i_cca36a_restart" }), false)
+    assert.equal(isRiskyButton({ entityId: "button.ratgdov25i_cca36a_query_status" }), false)
+    assert.equal(isRiskyButton({ entityId: "button.ratgdov25i_cca36a_sync" }), false)
+})
+
+test("mergeButtons: attaches cleaned labels to the right device, ignores unrelated entities", () => {
+    const entities = parseButtonEntities(BUTTON_STATES)
+    const merged = mergeButtons(BUTTON_DEVICES, entities)
+
+    const tagreader = merged.find((d) => d.name === "tagreader-bedroom")
+    const labels = tagreader.buttons.map((b) => b.label).sort()
+    assert.deepEqual(labels, ["Cancel writing", "Clean Tag", "Restart", "Write Tag Random"])
+
+    const ratgdo = merged.find((d) => d.name === "ratgdov25i-cca36a")
+    const ratgdoLabels = ratgdo.buttons.map((b) => b.label).sort()
+    assert.deepEqual(ratgdoLabels, ["Query status", "Restart", "Sync", "Toggle door"])
+    const toggle = ratgdo.buttons.find((b) => b.entityId === "button.ratgdov25i_cca36a_toggle_door")
+    assert.equal(toggle.risky, true)
+    const restart = ratgdo.buttons.find((b) => b.entityId === "button.ratgdov25i_cca36a_restart")
+    assert.equal(restart.risky, false)
+
+    // Device with no matching buttons at all gets an empty array, not undefined.
+    const stair = merged.find((d) => d.name === "stairlights")
+    assert.deepEqual(stair.buttons, [])
 })
 
 test("normalizeBaseUrl", () => {

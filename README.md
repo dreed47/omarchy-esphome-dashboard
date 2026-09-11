@@ -61,6 +61,14 @@ use a self-signed or expired cert — same LAN, same box, but worth knowing).
 
 Remove it from the popup's **Forget** button, or `node bin/esphome-dashboard ha-forget`.
 
+Once connected, any `button.*` entity HA has for a device — restart, sync,
+query status, a ratgdo's toggle door, a tag reader's write/clean/cancel-tag
+actions, whatever the device exposes — shows up as a row of buttons on that
+device's card, calling the same `button.press` service HA's own UI uses.
+Buttons that move something physical or overwrite data (toggle door, write/
+clean/cancel tag) ask for a confirm click first; routine ones (restart,
+sync, query) are single-click.
+
 ## Requirements
 
 - Node.js — `omarchy pkg add nodejs`. The popup tells you if it is missing.
@@ -117,6 +125,7 @@ esphome-dashboard ha-token --base-url URL [--verify-tls]   (token on stdin)
 esphome-dashboard ha-forget
 esphome-dashboard ha-status --json
 esphome-dashboard update-install --entity update.xxx --json
+esphome-dashboard press-button --entity button.xxx --json
 ```
 
 Offline confirmation (`confirmMisses`) and new/recovered-device notification
