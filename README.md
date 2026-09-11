@@ -35,21 +35,31 @@ reads HA's own `update.*` entities (nothing talks to the ESPHome Dashboard
 directly), so it works for any device HA already knows about, without
 needing the Dashboard reachable on your LAN.
 
+**From the popup:** click the gear icon in the header. Paste a Home
+Assistant long-lived access token (your profile → Security & devices →
+Long-lived access tokens → Create Token), set the base URL if it isn't
+`https://homeassistant.local:8123`, and Save. The token field is masked and
+is never shown again — leave it blank on a later visit to keep the current
+one and just change the URL or the TLS setting. **Forget** removes it.
+
+The token goes to the CLI over the process's stdin, the same way Omarchy's
+own Wi-Fi panel hands over an 802.1X password — never as a command-line
+argument, never in shell history.
+
+**From a terminal**, the same thing:
+
 ```bash
-# Home Assistant -> your profile -> Security & devices -> Long-lived access
-# tokens -> Create Token. Then, from the plugin directory:
 echo "$YOUR_TOKEN" | node bin/esphome-dashboard ha-token \
   --base-url https://homeassistant.local:8123
 ```
 
-The token is piped on stdin so it never appears in shell history or a
-process list, and is saved to `~/.config/omarchy/esphome-dashboard/ha.json`
+Either way it's saved to `~/.config/omarchy/esphome-dashboard/ha.json`
 (mode 600) — separate from `config.json`, on your machine only, used only
 for calls to that base URL. Add `--verify-tls` if your instance has a valid
 certificate; without it, verification is skipped (many local HA instances
 use a self-signed or expired cert — same LAN, same box, but worth knowing).
 
-Remove it with `node bin/esphome-dashboard ha-forget`.
+Remove it from the popup's **Forget** button, or `node bin/esphome-dashboard ha-forget`.
 
 ## Requirements
 

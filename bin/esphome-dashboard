@@ -14,7 +14,22 @@ import {
 } from "../haLogic.mjs"
 
 import * as io from "../lib/io.mjs"
-import { readFileSync } from "node:fs"
+import { createInterface } from "node:readline"
+
+// Read one line from stdin and resolve as soon as it arrives - does not
+// wait for the pipe to close. `echo "$TOKEN" | ... ha-token` closes stdin
+// right after the line anyway, but the QML settings form writes the token
+// with Process.write() and never explicitly closes stdin, the same way
+// Omarchy's own 802.1X Wi-Fi panel hands over a password.
+function readLineFromStdin() {
+    return new Promise((resolve) => {
+        const rl = createInterface({ input: process.stdin, terminal: false })
+        let done = false
+        const finish = (line) => { if (done) return; done = true; rl.close(); resolve(line) }
+        rl.once("line", finish)
+        rl.once("close", () => finish(null))
+    })
+}
 
 function die(msg, code = 1) {
     process.stderr.write("esphome-dashboard: " + msg + "\n")
@@ -60,6 +75,9 @@ async function buildStatus(healthTimeoutMs) {
         worstState: worstSeverity(devices),
         summary: summaryLine(devices),
         haConnected,
+        haConfigured: haConfigured(haCfg),
+        haBaseUrl: haCfg ? haCfg.baseUrl : "",   // never the token itself
+        haVerifyTls: haCfg ? !!haCfg.verifyTls : false,
     }
 }
 
@@ -88,9 +106,8 @@ async function cmdPing(a) {
 
 async function cmdHaToken(a) {
     if (!a["base-url"]) die("ha-token: --base-url is required")
-    let raw = ""
-    try { raw = readFileSync(0, "utf8") } catch { die("ha-token: could not read a token from stdin") }
-    const token = raw.trim()
+    const line = await readLineFromStdin()
+    const token = String(line || "").trim()
     if (!token) die("ha-token: no token on stdin (pipe it in: echo \"$TOKEN\" | esphome-dashboard ha-token ...)")
 
     const cfg = { baseUrl: normalizeBaseUrl(a["base-url"]), token, verifyTls: !!a["verify-tls"] }

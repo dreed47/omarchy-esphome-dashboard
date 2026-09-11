@@ -102,6 +102,9 @@ Item {
   property string summary: ""
   property double lastPollMs: 0
   property bool haConnected: false   // Phase 2: a Home Assistant token is saved and reachable
+  property bool haConfigured: false  // a token is saved, whether or not it answered this poll
+  property string haBaseUrl: ""      // never the token itself
+  property bool haVerifyTls: false
 
   // ---- persisted debounce / notification baseline ----------------
   PersistentProperties {
@@ -191,6 +194,9 @@ Item {
          + (offlineCount === 0 ? " · all online" : " · " + offlineCount + (offlineCount === 1 ? " offline" : " offline")))
     root.lastPollMs = Date.now()
     root.haConnected = s.haConnected === true
+    root.haConfigured = s.haConfigured === true
+    root.haBaseUrl = String(s.haBaseUrl || "")
+    root.haVerifyTls = s.haVerifyTls === true
 
     root.diffAndNotify(raw, nextMiss, threshold)
   }
@@ -318,11 +324,61 @@ Item {
     installProc.running = true
   }
 
+  // ---- Phase 2: save / forget the Home Assistant token, from the popup's
+  // settings form --------------------------------------------------
+  //
+  // The token goes over the process's stdin, never argv - the same way
+  // Omarchy's own Wi-Fi panel hands an 802.1X password to its helper
+  // (Process.write(), no explicit stdin close needed: the CLI reads one
+  // line and moves on rather than waiting for the pipe to end).
+  property string haSaveState: "idle"   // idle | saving | saved | error
+  property string haSaveError: ""
+  Process {
+    id: haTokenProc
+    property string pendingToken: ""
+    stdinEnabled: true
+    stdout: StdioCollector { waitForEnd: true }
+    stderr: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: {
+        var e = String(text).trim().replace(/^esphome-dashboard:\s*/, "")
+        if (e !== "") root.haSaveError = e
+      }
+    }
+    onStarted: { write(pendingToken + "\n"); pendingToken = "" }
+    onExited: function (code) {
+      root.haSaveState = code === 0 ? "saved" : "error"
+      Qt.callLater(root.pollSoon)
+    }
+  }
+  function saveHaToken(baseUrl, token, verifyTls) {
+    if (haTokenProc.running || !baseUrl || !token) return
+    root.haSaveState = "saving"
+    root.haSaveError = ""
+    haTokenProc.pendingToken = String(token)
+    var cmd = ["node", root.cli, "ha-token", "--base-url", String(baseUrl)]
+    if (verifyTls) cmd.push("--verify-tls")
+    haTokenProc.command = cmd
+    haTokenProc.running = true
+  }
+
+  Process {
+    id: haForgetProc
+    onExited: function () { root.haSaveState = "idle"; Qt.callLater(root.pollSoon) }
+  }
+  function forgetHaToken() {
+    if (haForgetProc.running) return
+    haForgetProc.command = ["node", root.cli, "ha-forget"]
+    haForgetProc.running = true
+  }
+
   // ---- IPC --------------------------------------------------
   IpcHandler {
     target: "esphome-dashboard"
     function refresh(): void { Qt.callLater(root.poll) }
     function installUpdate(entityId: string): void { root.installUpdate(entityId) }
+    function saveHaToken(baseUrl: string, token: string): void { root.saveHaToken(baseUrl, token, false) }
+    function forgetHaToken(): void { root.forgetHaToken() }
     function status(): string {
       return JSON.stringify({
         cliMissing: root.cliMissing,
@@ -333,7 +389,12 @@ Item {
         summary: root.summary,
         lastPollMs: root.lastPollMs,
         haConnected: root.haConnected,
-        installState: root.installState
+        haConfigured: root.haConfigured,
+        haBaseUrl: root.haBaseUrl,
+        haVerifyTls: root.haVerifyTls,
+        installState: root.installState,
+        haSaveState: root.haSaveState,
+        haSaveError: root.haSaveError
       })
     }
   }

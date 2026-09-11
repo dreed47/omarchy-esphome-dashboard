@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.3.0] - 2026-09-11
+
+### Added
+
+- **Settings page in the popup** — a gear icon opens a form to enter or
+  change the Home Assistant base URL, access token, and TLS verification,
+  and a **Forget** button to disconnect. No terminal required for Phase 2
+  setup anymore (the CLI flow from 0.2.0 still works too). The token field
+  is masked, never re-displayed, and travels to the CLI over the process's
+  stdin rather than argv - the same mechanism Omarchy's own Wi-Fi panel
+  uses for an 802.1X password.
+
+### Changed
+
+- **Icon**: replaced the generic FA4 wifi glyph with ESPHome's own mark,
+  drawn as an inline SVG (just the circuit-squiggle linework, no background)
+  so it tints via the bar's own colors like every other icon instead of
+  carrying a fixed brand color or background block.
+
 ## [0.2.0] - 2026-09-11
 
 Phase 2: optional Home Assistant integration for firmware updates.

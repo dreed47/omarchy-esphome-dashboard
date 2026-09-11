@@ -42,6 +42,44 @@ Panel {
     if (svc) svc.installUpdate(entityId)
   }
 
+  // ---- Home Assistant settings form -----------------------------
+  readonly property bool haConfigured: svc ? svc.haConfigured === true : false
+  readonly property string haBaseUrl: svc ? String(svc.haBaseUrl || "") : ""
+  readonly property bool haVerifyTls: svc ? svc.haVerifyTls === true : false
+  readonly property string haSaveState: svc ? String(svc.haSaveState || "idle") : "idle"
+  readonly property string haSaveError: svc ? String(svc.haSaveError || "") : ""
+
+  property bool editingSettings: false
+  property string draftBaseUrl: ""
+  property string draftToken: ""
+  property bool draftVerifyTls: false
+
+  function startEditingSettings() {
+    root.draftBaseUrl = root.haBaseUrl || "https://homeassistant.local:8123"
+    root.draftToken = ""
+    root.draftVerifyTls = root.haVerifyTls
+    root.editingSettings = true
+  }
+  function cancelEditingSettings() {
+    root.editingSettings = false
+    root.draftToken = ""
+  }
+  function submitHaSettings() {
+    if (!svc || root.draftBaseUrl === "" || root.draftToken === "") return
+    svc.saveHaToken(root.draftBaseUrl, root.draftToken, root.draftVerifyTls)
+  }
+  function forgetHaSettings() {
+    if (svc) svc.forgetHaToken()
+    root.draftToken = ""
+  }
+  // Show "Saved" for a beat, then close the form on its own.
+  Timer {
+    id: closeSettingsTimer
+    interval: 1100
+    onTriggered: root.editingSettings = false
+  }
+  onHaSaveStateChanged: if (root.haSaveState === "saved" && root.editingSettings) closeSettingsTimer.restart()
+
   readonly property string chipGlyph: String.fromCharCode(0xf1eb)   // FA4 wifi
   readonly property string bullet: String.fromCharCode(0x2022)
 
@@ -105,6 +143,7 @@ Panel {
     function close(): void { root.close() }
     function toggle(): void { root.toggle() }
     function refresh(): void { root.refresh() }
+    function settings(): void { root.openFromHotkey(); root.startEditingSettings() }
   }
 
   // ---- UI -------------------------------------------------
@@ -138,8 +177,9 @@ Panel {
     PanelKeyCatcher {
       id: keyCatcher
       anchors.fill: parent
-      onCloseRequested: root.close()
-      onTabRequested: function (direction) { root.switchPanel(direction) }
+      blocked: root.editingSettings
+      onCloseRequested: root.editingSettings ? root.cancelEditingSettings() : root.close()
+      onTabRequested: function (direction) { if (!root.editingSettings) root.switchPanel(direction) }
 
       Column {
         id: col
@@ -171,11 +211,12 @@ Panel {
           }
           Text {
             anchors.left: titleText.right
-            anchors.right: refreshBtn.left
+            anchors.right: gearBtn.left
             anchors.leftMargin: Style.space(8)
             anchors.rightMargin: Style.space(8)
             anchors.verticalCenter: parent.verticalCenter
             horizontalAlignment: Text.AlignRight
+            visible: !root.editingSettings
             text: root.summary
             elide: Text.ElideLeft
             color: root.sevColor(root.worstState)
@@ -183,7 +224,26 @@ Panel {
             font.pixelSize: Style.font.caption
           }
           Text {
+            id: gearBtn
+            anchors.right: refreshBtn.left
+            anchors.rightMargin: Style.space(10)
+            anchors.verticalCenter: parent.verticalCenter
+            text: root.editingSettings ? String.fromCharCode(0x00d7) : String.fromCharCode(0xf013)   // fa-gear / close
+            color: root.editingSettings ? Color.accent : (gearArea.containsMouse ? Color.accent : root.dim)
+            font.family: root.mono
+            font.pixelSize: root.editingSettings ? Style.font.title : Style.font.caption
+            MouseArea {
+              id: gearArea
+              anchors.fill: parent
+              anchors.margins: -Style.space(5)
+              hoverEnabled: true
+              cursorShape: Qt.PointingHandCursor
+              onClicked: root.editingSettings ? root.cancelEditingSettings() : root.startEditingSettings()
+            }
+          }
+          Text {
             id: refreshBtn
+            visible: !root.editingSettings
             anchors.right: parent.right
             anchors.rightMargin: Style.space(4)
             anchors.verticalCenter: parent.verticalCenter
@@ -201,6 +261,13 @@ Panel {
             }
           }
         }
+
+        Column {
+          id: mainContent
+          visible: !root.editingSettings
+          width: parent.width
+          spacing: Style.space(12)
+
 
         // ---- node-missing banner ------------------------------
         Rectangle {
@@ -424,6 +491,160 @@ Panel {
             font.family: root.mono
             font.pixelSize: Style.font.caption - 2
             elide: Text.ElideRight
+          }
+        }
+        }
+
+        // ================= HOME ASSISTANT SETTINGS =================
+        Column {
+          id: settingsView
+          visible: root.editingSettings
+          width: parent.width
+          spacing: Style.space(10)
+
+          Text {
+            width: parent.width
+            text: "HOME ASSISTANT"
+            color: root.dim
+            font.family: root.mono
+            font.pixelSize: Style.font.caption
+            font.letterSpacing: 1
+          }
+
+          Text {
+            width: parent.width
+            wrapMode: Text.WordWrap
+            text: !root.haConfigured
+              ? "Not connected. Enter a long-lived access token to see and install firmware updates."
+              : (root.haConnected ? "Connected to " + root.haBaseUrl
+                                   : "Configured for " + root.haBaseUrl + ", but not reachable right now.")
+            color: !root.haConfigured ? root.dim : (root.haConnected ? root.dim : root.urgent)
+            font.family: root.mono
+            font.pixelSize: Style.font.caption - 1
+          }
+
+          Column {
+            width: parent.width
+            spacing: Style.space(3)
+            Text {
+              text: "BASE URL"
+              color: root.dim
+              font.family: root.mono
+              font.pixelSize: Style.font.caption - 1
+              font.letterSpacing: 1
+            }
+            TextField {
+              width: parent.width
+              enabled: root.haSaveState !== "saving"
+              text: root.draftBaseUrl
+              foreground: root.fg
+              font.family: root.mono
+              onTextChanged: root.draftBaseUrl = text
+            }
+          }
+
+          Column {
+            width: parent.width
+            spacing: Style.space(3)
+            Text {
+              width: parent.width
+              wrapMode: Text.WordWrap
+              text: "ACCESS TOKEN" + (root.haConfigured ? "  (leave blank to keep the current one)" : "")
+              color: root.dim
+              font.family: root.mono
+              font.pixelSize: Style.font.caption - 1
+              font.letterSpacing: 1
+            }
+            TextField {
+              width: parent.width
+              enabled: root.haSaveState !== "saving"
+              text: root.draftToken
+              password: true
+              foreground: root.fg
+              font.family: root.mono
+              onTextChanged: root.draftToken = text
+            }
+          }
+
+          Row {
+            spacing: Style.space(8)
+            Text {
+              text: "Verify TLS certificate"
+              color: root.fg
+              font.family: root.mono
+              font.pixelSize: Style.font.caption - 1
+              anchors.verticalCenter: parent.verticalCenter
+            }
+            Rectangle {
+              width: Style.space(46); height: Style.space(22)
+              radius: Style.cornerRadius
+              color: "transparent"
+              border.width: 1
+              border.color: root.dim
+              anchors.verticalCenter: parent.verticalCenter
+              Text {
+                anchors.centerIn: parent
+                text: root.draftVerifyTls ? "on" : "off"
+                color: root.draftVerifyTls ? Color.accent : root.dim
+                font.family: root.mono
+                font.pixelSize: Style.font.caption - 1
+              }
+              MouseArea {
+                anchors.fill: parent
+                cursorShape: Qt.PointingHandCursor
+                enabled: root.haSaveState !== "saving"
+                onClicked: root.draftVerifyTls = !root.draftVerifyTls
+              }
+            }
+          }
+
+          Text {
+            visible: root.haSaveState === "error" && root.haSaveError !== ""
+            width: parent.width
+            wrapMode: Text.WordWrap
+            text: root.haSaveError
+            color: root.urgent
+            font.family: root.mono
+            font.pixelSize: Style.font.caption - 1
+          }
+          Text {
+            visible: root.haSaveState === "saved"
+            width: parent.width
+            text: String.fromCharCode(0xf00c) + "  Saved"
+            color: Color.accent
+            font.family: root.mono
+            font.pixelSize: Style.font.caption - 1
+          }
+
+          Row {
+            width: parent.width
+            spacing: Style.space(8)
+            EdMiniButton {
+              label: root.haSaveState === "saving" ? "Saving…" : "Save"
+              enabled: root.haSaveState !== "saving" && root.draftBaseUrl !== "" && root.draftToken !== ""
+              onTapped: root.submitHaSettings()
+            }
+            EdMiniButton {
+              label: "Cancel"
+              enabled: root.haSaveState !== "saving"
+              onTapped: root.cancelEditingSettings()
+            }
+            EdMiniButton {
+              visible: root.haConfigured
+              label: "Forget"
+              danger: true
+              enabled: root.haSaveState !== "saving"
+              onTapped: root.forgetHaSettings()
+            }
+          }
+
+          Text {
+            width: parent.width
+            wrapMode: Text.WordWrap
+            text: "Home Assistant → your profile → Security & devices → Long-lived access tokens → Create Token."
+            color: Qt.darker(root.dim, 1.1)
+            font.family: root.mono
+            font.pixelSize: Style.font.caption - 2
           }
         }
       }
