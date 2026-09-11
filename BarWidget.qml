@@ -122,6 +122,7 @@ BarWidget {
 
       // "online/total" count.
       Text {
+        textFormat: Text.PlainText
         anchors.verticalCenter: parent.verticalCenter
         visible: !root.cliMissing && root.deviceCount > 0
         text: root.onlineCount + "/" + root.deviceCount
@@ -133,6 +134,7 @@ BarWidget {
 
       // Missing Node.js.
       Text {
+        textFormat: Text.PlainText
         anchors.verticalCenter: parent.verticalCenter
         visible: root.cliMissing
         text: "Node.js missing"

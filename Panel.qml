@@ -214,6 +214,7 @@ Panel {
             color: root.fg
           }
           Text {
+            textFormat: Text.PlainText
             id: titleText
             anchors.left: titleMark.right
             anchors.leftMargin: Style.space(6)
@@ -225,6 +226,7 @@ Panel {
             font.bold: true
           }
           Text {
+            textFormat: Text.PlainText
             anchors.left: titleText.right
             anchors.right: gearBtn.left
             anchors.leftMargin: Style.space(8)
@@ -239,6 +241,7 @@ Panel {
             font.pixelSize: Style.font.caption
           }
           Text {
+            textFormat: Text.PlainText
             id: gearBtn
             anchors.right: refreshBtn.left
             anchors.rightMargin: Style.space(10)
@@ -257,6 +260,7 @@ Panel {
             }
           }
           Text {
+            textFormat: Text.PlainText
             id: refreshBtn
             visible: !root.editingSettings
             anchors.right: parent.right
@@ -294,6 +298,7 @@ Panel {
           border.width: 1
           border.color: root.urgent
           Text {
+            textFormat: Text.PlainText
             id: nodeMsg
             x: Style.space(10); y: Style.space(7)
             width: parent.width - Style.space(20)
@@ -312,6 +317,7 @@ Panel {
           spacing: Style.space(6)
 
           Text {
+            textFormat: Text.PlainText
             width: parent.width
             text: "DEVICES"
             color: root.dim
@@ -321,6 +327,7 @@ Panel {
           }
 
           Text {
+            textFormat: Text.PlainText
             visible: root.devices.length === 0
             width: parent.width
             text: "No ESPHome devices found on the network yet."
@@ -360,6 +367,7 @@ Panel {
                       : root.urgent
                   }
                   Text {
+                    textFormat: Text.PlainText
                     text: modelData.friendlyName
                     color: root.fg
                     font.family: root.mono
@@ -370,6 +378,7 @@ Panel {
                     anchors.verticalCenter: parent.verticalCenter
                   }
                   Text {
+                    textFormat: Text.PlainText
                     text: modelData.platform + (modelData.board ? "/" + modelData.board : "")
                     color: root.dim
                     font.family: root.mono
@@ -380,6 +389,7 @@ Panel {
                 }
 
                 Text {
+                  textFormat: Text.PlainText
                   width: parent.width
                   text: modelData.address + "  " + root.bullet + "  v" + modelData.espVersion
                     + (modelData.online ? "  " + root.bullet + "  " + modelData.latencyMs + "ms" : "")
@@ -389,6 +399,7 @@ Panel {
                 }
 
                 Text {
+                  textFormat: Text.PlainText
                   visible: modelData.projectName !== ""
                   width: parent.width
                   text: modelData.projectName + (modelData.projectVersion ? " " + modelData.projectVersion : "")
@@ -401,6 +412,7 @@ Panel {
                 Repeater {
                   model: modelData.alerts || []
                   Text {
+                    textFormat: Text.PlainText
                     required property var modelData
                     width: dRow.width
                     text: (modelData.severity === "error" ? String.fromCharCode(0xf071) + "  " : "")
@@ -421,6 +433,7 @@ Panel {
                   topPadding: Style.space(2)
 
                   Text {
+                    textFormat: Text.PlainText
                     width: parent.width
                     text: String.fromCharCode(0xf021) + "  Update available: "
                       + (modelData.firmwareUpdate ? modelData.firmwareUpdate.installedVersion : "")
@@ -446,6 +459,7 @@ Panel {
                     spacing: Style.space(6)
                     visible: root.confirmInstallFor === modelData.name
                     Text {
+                      textFormat: Text.PlainText
                       text: "Install and reboot " + modelData.friendlyName + "?"
                       color: root.fg
                       font.family: root.mono
@@ -500,6 +514,7 @@ Panel {
                       visible: root.confirmButtonFor === btnKey
                       spacing: Style.space(6)
                       Text {
+                        textFormat: Text.PlainText
                         text: modelData.label + " on " + buttonsFlow.deviceFriendly + "?"
                         color: root.fg
                         font.family: root.mono
@@ -525,6 +540,7 @@ Panel {
 
         // ---- Phase 2 status / errors --------------------------
         Text {
+          textFormat: Text.PlainText
           visible: root.installState === "installing"
           width: parent.width
           text: String.fromCharCode(0xf021) + "  Asking Home Assistant to install the update…"
@@ -533,6 +549,7 @@ Panel {
           font.pixelSize: Style.font.caption - 1
         }
         Text {
+          textFormat: Text.PlainText
           visible: root.installState === "error" && root.installError !== ""
           width: parent.width
           wrapMode: Text.WordWrap
@@ -542,6 +559,7 @@ Panel {
           font.pixelSize: Style.font.caption - 1
         }
         Text {
+          textFormat: Text.PlainText
           visible: root.buttonPressState === "error" && root.buttonPressError !== ""
           width: parent.width
           wrapMode: Text.WordWrap
@@ -556,6 +574,7 @@ Panel {
           width: parent.width
           spacing: Style.space(2)
           Text {
+            textFormat: Text.PlainText
             width: parent.width
             visible: root.haConnected
             text: String.fromCharCode(0xf00c) + "  Home Assistant connected"
@@ -564,6 +583,7 @@ Panel {
             font.pixelSize: Style.font.caption - 2
           }
           Text {
+            textFormat: Text.PlainText
             width: parent.width
             text: "options: ~/.config/omarchy/esphome-dashboard/config.json"
             color: Qt.darker(root.dim, 1.1)
@@ -582,6 +602,7 @@ Panel {
           spacing: Style.space(10)
 
           Text {
+            textFormat: Text.PlainText
             width: parent.width
             text: "HOME ASSISTANT"
             color: root.dim
@@ -591,6 +612,7 @@ Panel {
           }
 
           Text {
+            textFormat: Text.PlainText
             width: parent.width
             wrapMode: Text.WordWrap
             text: !root.haConfigured
@@ -606,6 +628,7 @@ Panel {
             width: parent.width
             spacing: Style.space(3)
             Text {
+              textFormat: Text.PlainText
               text: "BASE URL"
               color: root.dim
               font.family: root.mono
@@ -626,6 +649,7 @@ Panel {
             width: parent.width
             spacing: Style.space(3)
             Text {
+              textFormat: Text.PlainText
               width: parent.width
               wrapMode: Text.WordWrap
               text: "ACCESS TOKEN" + (root.haConfigured ? "  (leave blank to keep the current one)" : "")
@@ -648,6 +672,7 @@ Panel {
           Row {
             spacing: Style.space(8)
             Text {
+              textFormat: Text.PlainText
               text: "Verify TLS certificate"
               color: root.fg
               font.family: root.mono
@@ -662,6 +687,7 @@ Panel {
               border.color: root.dim
               anchors.verticalCenter: parent.verticalCenter
               Text {
+                textFormat: Text.PlainText
                 anchors.centerIn: parent
                 text: root.draftVerifyTls ? "on" : "off"
                 color: root.draftVerifyTls ? Color.accent : root.dim
@@ -678,6 +704,7 @@ Panel {
           }
 
           Text {
+            textFormat: Text.PlainText
             visible: root.haSaveState === "error" && root.haSaveError !== ""
             width: parent.width
             wrapMode: Text.WordWrap
@@ -687,6 +714,7 @@ Panel {
             font.pixelSize: Style.font.caption - 1
           }
           Text {
+            textFormat: Text.PlainText
             visible: root.haSaveState === "saved"
             width: parent.width
             text: String.fromCharCode(0xf00c) + "  Saved"
@@ -719,6 +747,7 @@ Panel {
           }
 
           Text {
+            textFormat: Text.PlainText
             width: parent.width
             wrapMode: Text.WordWrap
             text: "Home Assistant → your profile → Security & devices → Long-lived access tokens → Create Token."
@@ -747,6 +776,7 @@ Panel {
     border.color: enabled ? (danger ? root.urgent : root.dim) : Qt.darker(root.dim, 1.4)
     opacity: enabled ? 1 : 0.45
     Text {
+      textFormat: Text.PlainText
       id: t
       anchors.centerIn: parent
       text: parent.label

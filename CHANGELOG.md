@@ -1,5 +1,39 @@
 # Changelog
 
+## [0.4.2] - 2026-09-11
+
+### Security
+
+Second round of marketplace security review, addressed proactively rather
+than one comment at a time:
+
+- `avahi-browse` (mDNS discovery) now also spawns via a trusted absolute
+  path (`/usr/bin/avahi-browse`) instead of ambient `PATH` resolution —
+  same class of issue as 0.4.1's `node`/`omarchy-notification-send` fix,
+  found by auditing every remaining process spawn in the codebase rather
+  than waiting for it to be flagged individually.
+- Home Assistant HTTP responses are now capped at 32MB and the connection
+  aborted if exceeded, so a misbehaving or compromised HA endpoint can't
+  grow this process's memory without limit by streaming an unbounded
+  response.
+- The Home Assistant token file (`ha.json`) is now read and written
+  through symlink-safe, owner-checked, size-bounded file descriptors
+  (`O_NOFOLLOW`, regular-file + owner + size checks on read) and written
+  atomically (temp file in the same directory, `O_EXCL` + mode 600 from
+  creation, then renamed into place) instead of a plain
+  `readFileSync`/`writeFileSync`. Its directory is now also created and
+  kept at mode 700. This closes a local symlink-planting attack against
+  the file holding the bearer token, and makes a corrupted/oversized file
+  at that path fail closed (treated as "not configured") instead of being
+  trusted.
+- Every dynamic `Text` element (device names, platform/board info, alert
+  text, HA-sourced button labels) now sets `textFormat: Text.PlainText`
+  explicitly, matching Omarchy's own first-party convention. Without it,
+  Qt Quick's default `Text.AutoText` auto-detects and renders limited
+  HTML-like markup, so a crafted device or entity friendly-name (from
+  mDNS or a Home Assistant entity) could otherwise trigger unintended
+  rich-text rendering or a resource load.
+
 ## [0.4.1] - 2026-09-11
 
 ### Security
