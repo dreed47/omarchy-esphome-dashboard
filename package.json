@@ -1,6 +1,6 @@
 {
   "name": "omarchy-esphome-dashboard",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Fleet status for your ESPHome devices in the Omarchy bar. Omarchy shell plugin.",
   "type": "module",
   "private": true,

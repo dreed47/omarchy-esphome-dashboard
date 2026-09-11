@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.4.1] - 2026-09-11
+
+### Security
+
+- All process spawns now use trusted absolute paths (`/usr/bin/node`,
+  `/usr/bin/omarchy-notification-send`) instead of resolving them by name
+  through the shell's inherited `PATH`. Flagged in marketplace review:
+  since the Home Assistant token is sent to `node` over stdin and button
+  presses can trigger physical actions (a garage door's toggle), anything
+  earlier on that `PATH` able to intercept `node` could have captured the
+  token or spoofed a device action. Both binaries are fixed, package-owned
+  locations (`nodejs`, `omarchy`) — if either isn't actually there, the
+  spawn just fails, which this plugin already treats as "CLI missing" /
+  a no-op notification, not a crash.
+
 ## [0.4.0] - 2026-09-11
 
 ### Added

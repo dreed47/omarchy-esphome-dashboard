@@ -26,6 +26,19 @@ Item {
   readonly property string pluginDir: decodeURIComponent(
     String(Qt.resolvedUrl(".")).replace(/^file:\/\//, ""))
   readonly property string cli: pluginDir + "bin/esphome-dashboard"
+
+  // Trusted absolute executables, not ambient-PATH lookups. This process's
+  // PATH is inherited from the long-lived shell and isn't something this
+  // plugin controls; resolving "node"/"omarchy-notification-send" by name
+  // would let anything earlier on that PATH intercept the HA access token
+  // (sent to `node` over stdin) or spoof/suppress device-action calls.
+  // Both are fixed, package-owned locations: `nodejs` -> /usr/bin/node
+  // (the plugin's own documented dependency, "omarchy pkg add nodejs"),
+  // `omarchy` -> /usr/bin/omarchy-notification-send. If either binary isn't
+  // actually there, the spawn fails and this plugin already treats that as
+  // cliMissing / a no-op notification - it fails closed, not open.
+  readonly property string nodeBin: "/usr/bin/node"
+  readonly property string notifyBin: "/usr/bin/omarchy-notification-send"
   readonly property string home: String(Quickshell.env("HOME") || "")
   readonly property string confDir: {
     var xdg = String(Quickshell.env("XDG_CONFIG_HOME") || "")
@@ -128,7 +141,7 @@ Item {
       statusProc.running = false
     }
     root.pollStartedMs = Date.now()
-    statusProc.command = ["node", root.cli, "status", "--timeout", String(root.cfg.healthTimeoutMs), "--json"]
+    statusProc.command = [root.nodeBin, root.cli, "status", "--timeout", String(root.cfg.healthTimeoutMs), "--json"]
     statusProc.running = true
   }
   Timer {
@@ -269,7 +282,7 @@ Item {
   property var notifyQueue: []
   function notify(urgency, glyph, headline, body, isError) {
     if (!cfg.notify) return
-    var cmd = ["omarchy-notification-send", "--app-name", "ESPHome Dashboard", "-u", urgency]
+    var cmd = [root.notifyBin, "--app-name", "ESPHome Dashboard", "-u", urgency]
     if (glyph) { cmd.push("-g"); cmd.push(String(glyph)) }
     if (cfg.notifyTimeoutSeconds > 0) { cmd.push("-t"); cmd.push(String(cfg.notifyTimeoutSeconds * 1000)) }
     cmd.push(String(headline))
@@ -320,7 +333,7 @@ Item {
     if (installProc.running || !entityId) return
     root.installState = "installing"
     root.installError = ""
-    installProc.command = ["node", root.cli, "update-install", "--entity", String(entityId), "--json"]
+    installProc.command = [root.nodeBin, root.cli, "update-install", "--entity", String(entityId), "--json"]
     installProc.running = true
   }
 
@@ -355,7 +368,7 @@ Item {
     root.buttonPressState = "pressing"
     root.buttonPressEntity = String(entityId)
     root.buttonPressError = ""
-    buttonPressProc.command = ["node", root.cli, "press-button", "--entity", String(entityId), "--json"]
+    buttonPressProc.command = [root.nodeBin, root.cli, "press-button", "--entity", String(entityId), "--json"]
     buttonPressProc.running = true
   }
 
@@ -394,7 +407,7 @@ Item {
     root.haSaveState = "saving"
     root.haSaveError = ""
     haTokenProc.pendingToken = String(token || "")
-    var cmd = ["node", root.cli, "ha-token", "--base-url", String(baseUrl)]
+    var cmd = [root.nodeBin, root.cli, "ha-token", "--base-url", String(baseUrl)]
     if (verifyTls) cmd.push("--verify-tls")
     haTokenProc.command = cmd
     haTokenProc.running = true
@@ -406,7 +419,7 @@ Item {
   }
   function forgetHaToken() {
     if (haForgetProc.running) return
-    haForgetProc.command = ["node", root.cli, "ha-forget"]
+    haForgetProc.command = [root.nodeBin, root.cli, "ha-forget"]
     haForgetProc.running = true
   }
 

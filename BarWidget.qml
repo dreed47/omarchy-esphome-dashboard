@@ -39,7 +39,10 @@ BarWidget {
     if (!lines || lines.length === 0) return
     var headline = lines.shift()
     var body = lines.join("\n")
-    var cmd = "omarchy-notification-send --app-name 'ESPHome Dashboard' " + root.bar.shellQuote(headline)
+    // Absolute path, not ambient PATH - see Service.qml's nodeBin/notifyBin
+    // comment for why: this process's PATH is inherited from the
+    // long-lived shell, not something this plugin controls.
+    var cmd = "/usr/bin/omarchy-notification-send --app-name 'ESPHome Dashboard' " + root.bar.shellQuote(headline)
     if (body !== "") cmd += " " + root.bar.shellQuote(body)
     root.bar.run(cmd)
   }
