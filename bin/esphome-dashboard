@@ -1,0 +1,84 @@
+#!/usr/bin/env node
+// esphome-dashboard - the single engine behind the ESPHome Dashboard Omarchy
+// plugin. Service.qml and Panel.qml both shell out to this; nothing mDNS- or
+// network-related is done directly from QML. Pure parsing lives in
+// ../deviceLogic.mjs, system calls in ../lib/io.mjs.
+
+import {
+    parseArgs, HELP, COMMANDS,
+    parseEsphomeDevices, mergeHealth, deviceAlerts, worstSeverity, summaryLine,
+} from "../deviceLogic.mjs"
+
+import * as io from "../lib/io.mjs"
+
+function die(msg, code = 1) {
+    process.stderr.write("esphome-dashboard: " + msg + "\n")
+    process.exit(code)
+}
+function outJson(v) { process.stdout.write(JSON.stringify(v) + "\n") }
+
+async function discover() {
+    return parseEsphomeDevices(await io.avahiBrowseEsphome())
+}
+
+async function cmdDevices(a) {
+    const devices = await discover()
+    if (a.json) return outJson(devices)
+    if (!devices.length) { console.log("(no ESPHome devices found)"); return }
+    for (const d of devices) {
+        console.log(d.friendlyName + "  " + d.address + "  " + d.platform + "/" + d.board + "  v" + d.espVersion)
+    }
+}
+
+async function buildStatus(healthTimeoutMs) {
+    const raw = await discover()
+    const health = await io.healthCheckAll(raw, healthTimeoutMs)
+    const devices = mergeHealth(raw, health).map((d) => ({ ...d, alerts: deviceAlerts(d) }))
+    return {
+        devices,
+        deviceCount: devices.length,
+        onlineCount: devices.filter((d) => d.online).length,
+        worstState: worstSeverity(devices),
+        summary: summaryLine(devices),
+    }
+}
+
+async function cmdStatus(a) {
+    const timeout = parseInt(a.timeout, 10) || 1500
+    const st = await buildStatus(timeout)
+    if (a.json) return outJson(st)
+    console.log(st.summary)
+    for (const d of st.devices) {
+        console.log("  " + (d.online ? "*" : " ") + " " + d.friendlyName + "  " + d.address
+            + "  " + (d.online ? d.latencyMs + "ms" : "offline")
+            + (d.alerts.length ? "  [" + d.alerts.map((x) => x.text).join(", ") + "]" : ""))
+    }
+}
+
+async function cmdPing(a) {
+    if (!a.host) die("ping: --host is required")
+    const port = parseInt(a.port, 10) || 6053
+    const timeout = parseInt(a.timeout, 10) || 1500
+    const r = await io.tcpHealthCheck(a.host, port, timeout)
+    if (a.json) return outJson(r)
+    console.log(r.online ? "online (" + r.latencyMs + "ms)" : "offline")
+}
+
+async function main() {
+    let a
+    try {
+        a = parseArgs(process.argv.slice(2))
+    } catch (e) {
+        die(String(e.message || e))
+    }
+    if (a.help || a.cmd === "" || a.cmd === "help") { process.stdout.write(HELP); return }
+    if (!COMMANDS.includes(a.cmd)) die("unknown command: " + a.cmd + " (try --help)")
+
+    switch (a.cmd) {
+        case "status": return cmdStatus(a)
+        case "devices": return cmdDevices(a)
+        case "ping": return cmdPing(a)
+    }
+}
+
+main().catch((e) => die(String((e && e.stack) || e), 1))

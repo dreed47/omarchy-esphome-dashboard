@@ -1,0 +1,9 @@
+{
+  "pollSeconds": 30,
+  "healthTimeoutMs": 1500,
+  "notify": true,
+  "notifyTypes": ["offline", "online", "new"],
+  "notifyTimeoutSeconds": 0,
+  "hideNames": "",
+  "debug": false
+}
