@@ -68,7 +68,7 @@ Item {
     healthTimeoutMs: Math.max(300, parseInt(pick("healthTimeoutMs", 1500), 10) || 1500),
     confirmMisses: Math.max(1, parseInt(pick("confirmMisses", 2), 10) || 2),
     notify: isOn(pick("notify", "on")),
-    notifyTypes: String(pick("notifyTypes", "offline,online,new")).toLowerCase(),
+    notifyTypes: String(pick("notifyTypes", "offline,online,new,firmware")).toLowerCase(),
     notifyTimeoutSeconds: parseInt(pick("notifyTimeoutSeconds", 0), 10) || 0,
     hideNames: String(pick("hideNames", "")),
     debug: isOn(pick("debug", "off"))
@@ -101,6 +101,7 @@ Item {
   property string worstState: "ok"     // confirmed: ok | warn | error
   property string summary: ""
   property double lastPollMs: 0
+  property bool haConnected: false   // Phase 2: a Home Assistant token is saved and reachable
 
   // ---- persisted debounce / notification baseline ----------------
   PersistentProperties {
@@ -110,6 +111,7 @@ Item {
     property string missCountsJson: "{}"     // { deviceName: consecutive misses }
     property string confirmedJson: "{}"      // { deviceName: "online"|"offline" } last confirmed state notified on
     property string everSeenJson: "[]"       // every device name ever discovered
+    property string notifiedFirmwareJson: "{}"   // { deviceName: latestVersion already notified about }
   }
   function jparse(s, dflt) { try { var v = JSON.parse(s); return v === null ? dflt : v } catch (e) { return dflt } }
 
@@ -188,6 +190,7 @@ Item {
       : (raw.length + (raw.length === 1 ? " device" : " devices")
          + (offlineCount === 0 ? " · all online" : " · " + offlineCount + (offlineCount === 1 ? " offline" : " offline")))
     root.lastPollMs = Date.now()
+    root.haConnected = s.haConnected === true
 
     root.diffAndNotify(raw, nextMiss, threshold)
   }
@@ -201,17 +204,22 @@ Item {
       // First poll ever: adopt silently, nothing "new" or "recovered" yet.
       var seed = everSeen.slice()
       var confirmedSeed = {}
+      var firmwareSeed = {}
       for (var i = 0; i < raw.length; i++) {
         if (seed.indexOf(raw[i].name) === -1) seed.push(raw[i].name)
         confirmedSeed[raw[i].name] = raw[i].online ? "online" : "offline"
+        if (raw[i].firmwareUpdate && raw[i].firmwareUpdate.available)
+          firmwareSeed[raw[i].name] = raw[i].firmwareUpdate.latestVersion
       }
       st.everSeenJson = JSON.stringify(seed)
       st.confirmedJson = JSON.stringify(confirmedSeed)
+      st.notifiedFirmwareJson = JSON.stringify(firmwareSeed)
       st.baselined = true
       return
     }
 
     var nextConfirmed = Object.assign({}, confirmed)
+    var notifiedFw = jparse(st.notifiedFirmwareJson, {})
     for (var k = 0; k < raw.length; k++) {
       var d = raw[k]
       var isNew = everSeen.indexOf(d.name) === -1
@@ -220,6 +228,7 @@ Item {
         if (root.wants("new"))
           root.notify("normal", "", "New ESPHome device", d.friendlyName + " (" + d.address + ")", false)
         nextConfirmed[d.name] = d.online ? "online" : "offline"
+        if (d.firmwareUpdate && d.firmwareUpdate.available) notifiedFw[d.name] = d.firmwareUpdate.latestVersion
         continue
       }
 
@@ -233,9 +242,21 @@ Item {
         if (root.wants("offline"))
           root.notify("critical", "", d.friendlyName + " went offline", d.address, true)
       }
+
+      // Firmware update newly available (Phase 2, only once per version).
+      var fw = d.firmwareUpdate
+      if (fw && fw.available && notifiedFw[d.name] !== fw.latestVersion) {
+        notifiedFw[d.name] = fw.latestVersion
+        if (root.wants("firmware"))
+          root.notify("normal", "", d.friendlyName + " update available",
+            (fw.installedVersion || "?") + " " + String.fromCharCode(0x2192) + " " + fw.latestVersion, false)
+      } else if (!fw || !fw.available) {
+        delete notifiedFw[d.name]   // installed (or entity vanished) - free to notify again next time
+      }
     }
     st.everSeenJson = JSON.stringify(everSeen)
     st.confirmedJson = JSON.stringify(nextConfirmed)
+    st.notifiedFirmwareJson = JSON.stringify(notifiedFw)
   }
 
   // ---- notification queue -------------------------------------
@@ -266,10 +287,42 @@ Item {
     onTriggered: root.poll()
   }
 
+  // ---- Phase 2: ask Home Assistant to install a pending update ------
+  //
+  // The same thing pressing "Install" in HA's own UI does
+  // (`update.install`); nothing talks to the ESPHome Dashboard directly.
+  // The device reboots to apply it, so the popup asks for a confirm click
+  // before calling this.
+  property string installState: "idle"   // idle | installing | error
+  property string installError: ""
+  Process {
+    id: installProc
+    stdout: StdioCollector { waitForEnd: true }
+    stderr: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: {
+        var e = String(text).trim().replace(/^esphome-dashboard:\s*/, "")
+        if (e !== "") root.installError = e
+      }
+    }
+    onExited: function (code) {
+      root.installState = code === 0 ? "idle" : "error"
+      Qt.callLater(root.pollSoon)
+    }
+  }
+  function installUpdate(entityId) {
+    if (installProc.running || !entityId) return
+    root.installState = "installing"
+    root.installError = ""
+    installProc.command = ["node", root.cli, "update-install", "--entity", String(entityId), "--json"]
+    installProc.running = true
+  }
+
   // ---- IPC --------------------------------------------------
   IpcHandler {
     target: "esphome-dashboard"
     function refresh(): void { Qt.callLater(root.poll) }
+    function installUpdate(entityId: string): void { root.installUpdate(entityId) }
     function status(): string {
       return JSON.stringify({
         cliMissing: root.cliMissing,
@@ -278,7 +331,9 @@ Item {
         onlineCount: root.onlineCount,
         worstState: root.worstState,
         summary: root.summary,
-        lastPollMs: root.lastPollMs
+        lastPollMs: root.lastPollMs,
+        haConnected: root.haConnected,
+        installState: root.installState
       })
     }
   }

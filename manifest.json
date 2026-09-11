@@ -2,10 +2,10 @@
   "schemaVersion": 1,
   "id": "io.github.dreed47.esphome-dashboard",
   "name": "ESPHome Dashboard",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "author": "David Reed",
   "license": "MIT",
-  "description": "Fleet status for your ESPHome devices in the Omarchy bar. Finds every device over mDNS (the same service Home Assistant uses) and TCP-checks each one's API port, so the pill shows how many are online at a glance and turns urgent when one drops. The popup lists each device with platform, board, firmware version, and latency, and flags any device whose API has no Noise encryption set. No configuration or credentials needed.",
+  "description": "Fleet status for your ESPHome devices in the Omarchy bar. Finds every device over mDNS (like Home Assistant does) and TCP-checks each one's API port, so the pill shows how many are online and turns urgent when one drops. The popup lists each device with platform, board, firmware version, latency, and flags any API with no Noise encryption set. No configuration needed. Optionally connect a Home Assistant token to see and install pending OTA firmware updates.",
   "kinds": [
     "bar-widget",
     "service"
@@ -36,7 +36,7 @@
       "pollSeconds": 30,
       "healthTimeoutMs": 1500,
       "notify": "on",
-      "notifyTypes": "offline,online,new",
+      "notifyTypes": "offline,online,new,firmware",
       "notifyTimeoutSeconds": 0,
       "hideNames": "",
       "debug": "off"
@@ -45,7 +45,7 @@
       { "key": "pollSeconds", "type": "int", "label": "How often to rescan and health-check (seconds, minimum 10)" },
       { "key": "healthTimeoutMs", "type": "int", "label": "Per-device TCP health-check timeout (ms, minimum 300)" },
       { "key": "notify", "type": "string", "label": "Desktop notifications: on or off" },
-      { "key": "notifyTypes", "type": "string", "label": "Notify for which events (comma list): offline,online,new - or 'all'" },
+      { "key": "notifyTypes", "type": "string", "label": "Notify for which events (comma list): offline,online,new,firmware - or 'all'" },
       { "key": "notifyTimeoutSeconds", "type": "int", "label": "Auto-dismiss notification after N seconds (0 = daemon default)" },
       { "key": "hideNames", "type": "string", "label": "Comma-separated mDNS names to ignore (e.g. devices you don't want tracked)" },
       { "key": "debug", "type": "string", "label": "Log raw CLI output to the shell log: on or off" }

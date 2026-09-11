@@ -31,6 +31,16 @@ Panel {
   readonly property int onlineCount: svc ? (svc.onlineCount || 0) : 0
   readonly property string worstState: svc ? String(svc.worstState || "ok") : "ok"
   readonly property string summary: svc ? String(svc.summary || "") : ""
+  readonly property bool haConnected: svc ? svc.haConnected === true : false
+  readonly property string installState: svc ? String(svc.installState || "idle") : "idle"
+  readonly property string installError: svc ? String(svc.installError || "") : ""
+
+  // name of the device row currently showing "Install this update? [Install] [Cancel]"
+  property string confirmInstallFor: ""
+  function installUpdate(name, entityId) {
+    root.confirmInstallFor = ""
+    if (svc) svc.installUpdate(entityId)
+  }
 
   readonly property string chipGlyph: String.fromCharCode(0xf1eb)   // FA4 wifi
   readonly property string bullet: String.fromCharCode(0x2022)
@@ -312,21 +322,125 @@ Panel {
                     visible: modelData.code !== "offline"   // the dot + address line already say offline
                   }
                 }
+
+                // ---- Phase 2: Home Assistant firmware-update badge ------
+                Column {
+                  visible: modelData.firmwareUpdate !== null && modelData.firmwareUpdate.available
+                  width: dRow.width
+                  spacing: Style.space(3)
+                  topPadding: Style.space(2)
+
+                  Text {
+                    width: parent.width
+                    text: String.fromCharCode(0xf021) + "  Update available: "
+                      + (modelData.firmwareUpdate ? modelData.firmwareUpdate.installedVersion : "")
+                      + " " + String.fromCharCode(0x2192) + " "
+                      + (modelData.firmwareUpdate ? modelData.firmwareUpdate.latestVersion : "")
+                    color: Color.accent
+                    font.family: root.mono
+                    font.pixelSize: Style.font.caption - 1
+                    wrapMode: Text.WordWrap
+                  }
+
+                  // idle: one button. clicked: inline "Install now? [Install] [Cancel]".
+                  Row {
+                    spacing: Style.space(6)
+                    visible: root.confirmInstallFor !== modelData.name
+                    EdMiniButton {
+                      label: "Install…"
+                      enabled: root.installState !== "installing"
+                      onTapped: root.confirmInstallFor = modelData.name
+                    }
+                  }
+                  Row {
+                    spacing: Style.space(6)
+                    visible: root.confirmInstallFor === modelData.name
+                    Text {
+                      text: "Install and reboot " + modelData.friendlyName + "?"
+                      color: root.fg
+                      font.family: root.mono
+                      font.pixelSize: Style.font.caption - 1
+                      anchors.verticalCenter: parent.verticalCenter
+                    }
+                    EdMiniButton {
+                      label: "Install"
+                      danger: true
+                      onTapped: root.installUpdate(modelData.name, modelData.firmwareUpdate.entityId)
+                    }
+                    EdMiniButton {
+                      label: "Cancel"
+                      onTapped: root.confirmInstallFor = ""
+                    }
+                  }
+                }
               }
             }
           }
+        }
+
+        // ---- Phase 2 status / errors --------------------------
+        Text {
+          visible: root.installState === "installing"
+          width: parent.width
+          text: String.fromCharCode(0xf021) + "  Asking Home Assistant to install the update…"
+          color: root.dim
+          font.family: root.mono
+          font.pixelSize: Style.font.caption - 1
+        }
+        Text {
+          visible: root.installState === "error" && root.installError !== ""
+          width: parent.width
+          wrapMode: Text.WordWrap
+          text: root.installError
+          color: root.urgent
+          font.family: root.mono
+          font.pixelSize: Style.font.caption - 1
         }
 
         // ---- footer -------------------------------------------
         Text {
           width: parent.width
           text: "options: ~/.config/omarchy/esphome-dashboard/config.json"
+            + (root.haConnected ? "  " + root.bullet + "  Home Assistant connected" : "")
           color: Qt.darker(root.dim, 1.1)
           font.family: root.mono
           font.pixelSize: Style.font.caption - 2
           elide: Text.ElideRight
         }
       }
+    }
+  }
+
+  // Small pill button used for the update-install confirm flow.
+  component EdMiniButton: Rectangle {
+    property string label: ""
+    property bool danger: false
+    property bool enabled: true
+    signal tapped()
+    implicitHeight: Style.space(22)
+    implicitWidth: t.implicitWidth + Style.space(16)
+    radius: height / 2
+    color: ma.containsMouse && enabled
+      ? (root.bar ? Style.hoverFillFor(root.fg, danger ? root.urgent : Color.accent) : "#333")
+      : "transparent"
+    border.width: 1
+    border.color: enabled ? (danger ? root.urgent : root.dim) : Qt.darker(root.dim, 1.4)
+    opacity: enabled ? 1 : 0.45
+    Text {
+      id: t
+      anchors.centerIn: parent
+      text: parent.label
+      color: root.fg
+      font.family: root.mono
+      font.pixelSize: Style.font.caption - 1
+    }
+    MouseArea {
+      id: ma
+      anchors.fill: parent
+      hoverEnabled: true
+      enabled: parent.enabled
+      cursorShape: Qt.PointingHandCursor
+      onClicked: parent.tapped()
     }
   }
 }

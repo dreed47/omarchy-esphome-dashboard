@@ -1,13 +1,13 @@
 {
   "name": "omarchy-esphome-dashboard",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Fleet status for your ESPHome devices in the Omarchy bar. Omarchy shell plugin.",
   "type": "module",
   "private": true,
   "scripts": {
     "test": "node --test",
     "validate": "node scripts/validate-manifest.mjs",
-    "check": "node --check deviceLogic.mjs && node --check lib/io.mjs && node --check bin/esphome-dashboard && node scripts/validate-manifest.mjs && node --test"
+    "check": "node --check deviceLogic.mjs && node --check haLogic.mjs && node --check lib/io.mjs && node --check bin/esphome-dashboard && node scripts/validate-manifest.mjs && node --test"
   },
   "repository": {
     "type": "git",

@@ -24,8 +24,32 @@ applies (worth knowing before you expose anything to the internet).
 
 **Notifications** — a headless service polls the fleet and notifies when a
 device goes offline (confirmed, not on the first missed poll), comes back,
-or is seen for the first time. The three event classes — `offline`, `online`,
-`new` — toggle independently.
+is seen for the first time, or has a firmware update available. The four
+event classes — `offline`, `online`, `new`, `firmware` — toggle independently.
+
+## Phase 2 (optional): Home Assistant firmware updates
+
+Connecting a Home Assistant token adds per-device OTA update status and an
+**Install** button — the same thing pressing Install in HA's own UI does. It
+reads HA's own `update.*` entities (nothing talks to the ESPHome Dashboard
+directly), so it works for any device HA already knows about, without
+needing the Dashboard reachable on your LAN.
+
+```bash
+# Home Assistant -> your profile -> Security & devices -> Long-lived access
+# tokens -> Create Token. Then, from the plugin directory:
+echo "$YOUR_TOKEN" | node bin/esphome-dashboard ha-token \
+  --base-url https://homeassistant.local:8123
+```
+
+The token is piped on stdin so it never appears in shell history or a
+process list, and is saved to `~/.config/omarchy/esphome-dashboard/ha.json`
+(mode 600) — separate from `config.json`, on your machine only, used only
+for calls to that base URL. Add `--verify-tls` if your instance has a valid
+certificate; without it, verification is skipped (many local HA instances
+use a self-signed or expired cert — same LAN, same box, but worth knowing).
+
+Remove it with `node bin/esphome-dashboard ha-forget`.
 
 ## Requirements
 
@@ -79,6 +103,10 @@ touches the network directly from QML. Parsing is pure and unit-tested
 esphome-dashboard status   --json     overview the pill/popup render from
 esphome-dashboard devices  --json     mDNS discovery only, no health probe
 esphome-dashboard ping     --host IP [--port 6053] [--timeout ms] --json
+esphome-dashboard ha-token --base-url URL [--verify-tls]   (token on stdin)
+esphome-dashboard ha-forget
+esphome-dashboard ha-status --json
+esphome-dashboard update-install --entity update.xxx --json
 ```
 
 Offline confirmation (`confirmMisses`) and new/recovered-device notification

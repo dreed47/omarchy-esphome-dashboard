@@ -2,7 +2,7 @@
   "pollSeconds": 30,
   "healthTimeoutMs": 1500,
   "notify": true,
-  "notifyTypes": ["offline", "online", "new"],
+  "notifyTypes": ["offline", "online", "new", "firmware"],
   "notifyTimeoutSeconds": 0,
   "hideNames": "",
   "debug": false

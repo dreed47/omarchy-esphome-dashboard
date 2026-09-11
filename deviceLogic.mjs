@@ -169,10 +169,10 @@ export function onlineMap(devices) {
 
 // ---- CLI arg parsing ------------------------------------------------
 
-export const COMMANDS = ["status", "devices", "ping"]
+export const COMMANDS = ["status", "devices", "ping", "ha-token", "ha-forget", "ha-status", "update-install"]
 
-const VALUE_FLAGS = new Set(["--host", "--port", "--timeout"])
-const BOOL_FLAGS = new Set(["--json"])
+const VALUE_FLAGS = new Set(["--host", "--port", "--timeout", "--base-url", "--entity"])
+const BOOL_FLAGS = new Set(["--json", "--verify-tls"])
 
 export function parseArgs(argv) {
     const out = { cmd: "", positionals: [], json: false }
@@ -197,9 +197,20 @@ usage:
   esphome-dashboard devices [--json]              mDNS discovery only, no health probe
   esphome-dashboard ping    --host IP [--port 6053] [--timeout ms] [--json]
 
+  esphome-dashboard ha-token --base-url URL [--verify-tls]
+                                              read a token on stdin, verify it, save it
+  esphome-dashboard ha-forget                 delete the saved Home Assistant token
+  esphome-dashboard ha-status [--json]        raw update.* entities from Home Assistant
+  esphome-dashboard update-install --entity update.xxx [--json]
+                                              ask Home Assistant to install that update
+
 Discovery is mDNS (_esphomelib._tcp, the service every ESPHome device
 advertises for Home Assistant's native API) - no configuration, no
 credentials. "status" also TCP-connects to each device's API port to tell
 real reachability from a stale mDNS cache entry.
+
+Home Assistant integration is optional (Phase 2): once a token is saved,
+"status" also reports OTA update availability per device by reading HA's
+own update.* entities - the same information HA's UI shows.
 `
 
