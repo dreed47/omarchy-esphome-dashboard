@@ -150,17 +150,13 @@ Panel {
         Item {
           width: parent.width
           height: Style.space(24)
-          Image {
+          EsphomeMark {
             id: titleMark
             anchors.left: parent.left
             anchors.leftMargin: Style.space(4)
             anchors.verticalCenter: parent.verticalCenter
             width: Style.space(18); height: Style.space(18)
-            source: Qt.resolvedUrl("EsphomeMark.png")
-            fillMode: Image.PreserveAspectFit
-            smooth: true
-            sourceSize.width: width * 2
-            sourceSize.height: height * 2
+            color: root.fg
           }
           Text {
             id: titleText
