@@ -398,14 +398,25 @@ Panel {
         }
 
         // ---- footer -------------------------------------------
-        Text {
+        Column {
           width: parent.width
-          text: "options: ~/.config/omarchy/esphome-dashboard/config.json"
-            + (root.haConnected ? "  " + root.bullet + "  Home Assistant connected" : "")
-          color: Qt.darker(root.dim, 1.1)
-          font.family: root.mono
-          font.pixelSize: Style.font.caption - 2
-          elide: Text.ElideRight
+          spacing: Style.space(2)
+          Text {
+            width: parent.width
+            visible: root.haConnected
+            text: String.fromCharCode(0xf00c) + "  Home Assistant connected"
+            color: Qt.darker(root.dim, 1.1)
+            font.family: root.mono
+            font.pixelSize: Style.font.caption - 2
+          }
+          Text {
+            width: parent.width
+            text: "options: ~/.config/omarchy/esphome-dashboard/config.json"
+            color: Qt.darker(root.dim, 1.1)
+            font.family: root.mono
+            font.pixelSize: Style.font.caption - 2
+            elide: Text.ElideRight
+          }
         }
       }
     }
