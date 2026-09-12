@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "io.github.dreed47.esphome-dashboard",
   "name": "ESPHome Dashboard",
-  "version": "0.4.4",
+  "version": "0.4.5",
   "author": "David Reed",
   "license": "MIT",
   "description": "Fleet status for your ESPHome devices in the Omarchy bar. Finds every device over mDNS (like Home Assistant does) and TCP-checks each one's API port, so the pill shows how many are online and turns urgent when one drops. The popup lists each device with platform, board, firmware version, latency, and flags any API with no Noise encryption set. No configuration needed. Optionally connect a Home Assistant token to see and install pending OTA firmware updates.",

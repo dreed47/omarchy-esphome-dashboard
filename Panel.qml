@@ -71,7 +71,11 @@ Panel {
   function startEditingSettings() {
     root.draftBaseUrl = root.haBaseUrl || "https://homeassistant.local:8123"
     root.draftToken = ""
-    root.draftVerifyTls = root.haVerifyTls
+    // Default to verifying TLS for a brand-new setup - the token is a real
+    // credential sent on every request. Only preserve an already-saved
+    // "off" so re-opening settings doesn't silently re-enable it out from
+    // under an existing (CLI-validated, loopback-only) insecure setup.
+    root.draftVerifyTls = root.haConfigured ? root.haVerifyTls : true
     root.editingSettings = true
   }
   function cancelEditingSettings() {
@@ -701,6 +705,19 @@ Panel {
                 onClicked: root.draftVerifyTls = !root.draftVerifyTls
               }
             }
+          }
+
+          Text {
+            textFormat: Text.PlainText
+            visible: !root.draftVerifyTls
+            width: parent.width
+            wrapMode: Text.WordWrap
+            text: String.fromCharCode(0xf071) + "  Insecure: your access token will be sent without checking "
+              + "the server's certificate. Only accepted for a loopback address (127.0.0.1/localhost) - "
+              + "Save will refuse this for anything else."
+            color: root.urgent
+            font.family: root.mono
+            font.pixelSize: Style.font.caption - 1
           }
 
           Text {

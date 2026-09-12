@@ -57,9 +57,16 @@ Either way, the token itself is stored in your system keyring (the
 freedesktop Secret Service — `gnome-keyring` on Omarchy, already running as
 part of the base install), not written to disk in plain text anywhere.
 `~/.config/omarchy/esphome-dashboard/ha.json` only holds the non-secret
-base URL and TLS setting. Add `--verify-tls` if your instance has a valid
-certificate; without it, verification is skipped (many local HA instances
-use a self-signed or expired cert — same LAN, same box, but worth knowing).
+base URL and TLS setting.
+
+TLS certificate verification is **on by default** — your access token is
+sent on every request, so it's only skipped (`--insecure`) for a loopback
+base URL (`127.0.0.1`, `::1`, `localhost`); anywhere else, `ha-token`
+refuses to save an insecure connection. If your instance has a self-signed
+or expired certificate (common for a purely local HA install), give it a
+real one — Home Assistant's own Let's Encrypt/DuckDNS add-on, or a reverse
+proxy — rather than disabling verification, since that's what actually
+protects the token in transit.
 
 Remove it from the popup's **Forget** button, or `node bin/esphome-dashboard ha-forget`
 — both clear the keyring entry and the base URL/TLS setting.
@@ -127,7 +134,7 @@ touches the network directly from QML. Parsing is pure and unit-tested
 esphome-dashboard status   --json     overview the pill/popup render from
 esphome-dashboard devices  --json     mDNS discovery only, no health probe
 esphome-dashboard ping     --host IP [--port 6053] [--timeout ms] --json
-esphome-dashboard ha-token --base-url URL [--verify-tls]   (token on stdin)
+esphome-dashboard ha-token --base-url URL [--insecure]   (token on stdin)
 esphome-dashboard ha-forget
 esphome-dashboard ha-status --json
 esphome-dashboard update-install --entity update.xxx --json

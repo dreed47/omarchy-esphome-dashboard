@@ -7,6 +7,8 @@
 // No network here - lib/io.mjs does the HTTP; this only shapes JSON that is
 // already in hand.
 
+import { URL } from "node:url"
+
 // HA's `GET /api/states` returns one object per entity:
 //   { entity_id, state, attributes: {...}, last_changed, last_updated }
 // For `update.*` entities the attributes of interest are:
@@ -199,4 +201,19 @@ export function normalizeBaseUrl(url) {
     if (u === "") return ""
     if (!/^https?:\/\//i.test(u)) u = "https://" + u
     return u.replace(/\/+$/, "")
+}
+
+// The HA access token is sent on every request; skipping TLS certificate
+// verification means anyone able to intercept the connection (a rogue AP,
+// ARP/DNS spoofing, a compromised router) can read it. That's only an
+// acceptable trade-off when the connection can't leave the machine at all
+// - a loopback address, e.g. because HA is reached through a local
+// reverse proxy or an SSH tunnel. Used to gate --insecure: verification is
+// on by default and can only be turned off for a loopback base URL.
+export function isLoopbackBaseUrl(baseUrl) {
+    let u
+    try { u = new URL(String(baseUrl || "")) } catch { return false }
+    const h = u.hostname.toLowerCase().replace(/^\[|\]$/g, "")
+    if (h === "localhost" || h === "::1") return true
+    return /^127(\.\d{1,3}){3}$/.test(h)   // all of 127.0.0.0/8 is loopback, not just 127.0.0.1
 }

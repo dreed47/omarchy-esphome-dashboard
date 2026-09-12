@@ -408,7 +408,7 @@ Item {
     root.haSaveError = ""
     haTokenProc.pendingToken = String(token || "")
     var cmd = [root.nodeBin, root.cli, "ha-token", "--base-url", String(baseUrl)]
-    if (verifyTls) cmd.push("--verify-tls")
+    if (!verifyTls) cmd.push("--insecure")
     haTokenProc.command = cmd
     haTokenProc.running = true
   }

@@ -1,5 +1,52 @@
 # Changelog
 
+## [0.4.5] - 2026-09-11
+
+### Security
+
+Fifth round of marketplace review. The token itself moved to the keyring
+in 0.4.4, but the reviewer correctly pointed out that `ha.json` (holding
+`baseUrl`) is still integrity-sensitive: it controls WHERE that keyring
+token gets sent, so a directory-symlink swap could redirect it to an
+attacker-controlled endpoint even though the token's own storage is now
+solid. Four fixes:
+
+- `ha.json` is back to the hardened read/write path from 0.4.2/0.4.3
+  (ancestor-directory verification, `O_NOFOLLOW`, atomic write, fsync) -
+  not because its contents are secret, but because its integrity
+  determines where a secret goes. (The one difference from before: the
+  read-side permission check now only requires no group/other *write*
+  access, not unreadability - this file has nothing to keep confidential,
+  and requiring 0600-class permissions rejected a file written by a
+  slightly older build with default 0644 permissions for no real reason.)
+- Migration from the pre-keyring format no longer falls back to trusting
+  the legacy plaintext token forever if moving it into the keyring fails
+  partway - it fails closed (reports "not configured") instead of keeping
+  the original exposure alive indefinitely.
+- **TLS certificate verification is on by default.** Previously it
+  defaulted off (many local HA instances have a self-signed or expired
+  cert) - sending a bearer token over an unverified TLS connection is
+  interceptable by anyone who can get in the middle of it. `--insecure`
+  is now only accepted for a loopback base URL (`127.0.0.1`/`::1`/
+  `localhost`); `ha-token` refuses to save it for anything else. The
+  settings form defaults new setups to verification on and shows an
+  explicit warning when it's off.
+- The CLI now kills any child process it's still waiting on (`avahi-browse`)
+  on its own `SIGTERM`/`SIGINT`, so Service.qml's 20-second stuck-poll
+  cancellation (which can only signal this process directly, not a whole
+  process group) can't orphan one. `status --json` output is also capped
+  at 8MB before printing, on top of the existing 32MB cap on the raw HA
+  response, since Quickshell's own stdout collector buffers whatever this
+  process emits in full.
+
+Verified live: re-ran the same symlink attack simulations from 0.4.3
+against the reinstated `ha.json` hardening (both refused, same as
+before); confirmed `--insecure` against a non-loopback URL is rejected
+with a clear error; confirmed a real `avahi-browse` child gets killed
+when the CLI is sent SIGTERM mid-discovery, leaving no orphan; confirmed
+normal `status`/`ha-status`/save/forget all still work and a live shell
+restart still finds all 10 devices and stays connected to Home Assistant.
+
 ## [0.4.4] - 2026-09-11
 
 ### Security / Changed

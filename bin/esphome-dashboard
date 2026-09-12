@@ -11,7 +11,7 @@ import {
 
 import {
     parseUpdateEntities, mergeFirmwareUpdates, haConfigured, normalizeBaseUrl,
-    parseButtonEntities, mergeButtons,
+    parseButtonEntities, mergeButtons, isLoopbackBaseUrl,
 } from "../haLogic.mjs"
 
 import * as io from "../lib/io.mjs"
@@ -36,7 +36,20 @@ function die(msg, code = 1) {
     process.stderr.write("esphome-dashboard: " + msg + "\n")
     process.exit(code)
 }
-function outJson(v) { process.stdout.write(JSON.stringify(v) + "\n") }
+// A generous ceiling, not a target - the largest real payload this prints
+// is `status --json` for a big Home Assistant instance (David's real
+// fleet: 10 devices, ~1800 HA entities filtered down to a handful of
+// update.*/button.* matches) and stays well under 1MB. This exists so a
+// pathological upstream HA response - already capped at the network layer
+// in lib/io.mjs, but defense in depth - can't also grow unbounded here
+// once reshaped into what we print, since Quickshell's own StdioCollector
+// on the QML side buffers whatever we emit in full before parsing it.
+const MAX_STDOUT_BYTES = 8 * 1024 * 1024
+function outJson(v) {
+    const body = JSON.stringify(v) + "\n"
+    if (Buffer.byteLength(body) > MAX_STDOUT_BYTES) die("refusing to print an oversized response (" + Buffer.byteLength(body) + " bytes)")
+    process.stdout.write(body)
+}
 
 async function discover() {
     return parseEsphomeDevices(await io.avahiBrowseEsphome())
@@ -120,7 +133,23 @@ async function cmdHaToken(a) {
         token = existing.token
     }
 
-    const cfg = { baseUrl: normalizeBaseUrl(a["base-url"]), token, verifyTls: !!a["verify-tls"] }
+    const baseUrl = normalizeBaseUrl(a["base-url"])
+    // TLS verification is on by default - this is a bearer credential sent
+    // on every request. The only relaxation allowed is --insecure against
+    // a loopback address (a local reverse proxy, an SSH tunnel), where the
+    // connection can't be intercepted off-box in the first place; anywhere
+    // else, skipping verification means anyone who can get in the middle
+    // of the connection reads the token.
+    const verifyTls = !a.insecure
+    if (!verifyTls && !isLoopbackBaseUrl(baseUrl)) {
+        die("ha-token: --insecure is only allowed for a loopback base URL (127.0.0.1, ::1, or localhost). "
+            + "Your Home Assistant access token is sent on every request; skipping TLS verification for "
+            + baseUrl + " means anyone who can intercept the connection can read it. Use a base URL with "
+            + "a valid certificate (Home Assistant's own Let's Encrypt/DuckDNS add-on, or a reverse proxy), "
+            + "or point this at a loopback address if you're proxying locally.")
+    }
+
+    const cfg = { baseUrl, token, verifyTls }
     const r = await io.haWhoAmI(cfg)
     if (!r.ok) die("could not verify that token against " + cfg.baseUrl + ": " + (r.error || ("HTTP " + r.status)))
 
@@ -186,6 +215,21 @@ async function main() {
         case "press-button": return cmdPressButton(a)
     }
 }
+
+// Service.qml gives up waiting on a stuck `status` poll after 20s and sets
+// `Process.running = false`, which signals SIGTERM to this process
+// directly - Quickshell has no way to signal a whole process group. If
+// this process is spawning something at that moment (avahi-browse via
+// execFile), that child's own `timeout` option can't save it: the timer
+// that would kill it lives in THIS process's event loop, so it never
+// fires once this process is gone, and the child is orphaned. Kill
+// whatever's still running ourselves before exiting.
+function shutdown(signal) {
+    io.killActiveChildren()
+    process.exit(signal === "SIGINT" ? 130 : 143)
+}
+process.on("SIGTERM", () => shutdown("SIGTERM"))
+process.on("SIGINT", () => shutdown("SIGINT"))
 
 // `ha-token` reads stdin via readline, which puts process.stdin into flowing
 // mode - an active handle that keeps the event loop alive even after the

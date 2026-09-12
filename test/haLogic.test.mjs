@@ -4,7 +4,7 @@ import assert from "node:assert/strict"
 import {
     parseUpdateEntities, matchDeviceForEntity, mergeFirmwareUpdates,
     parseButtonEntities, isRiskyButton, mergeButtons,
-    haConfigured, normalizeBaseUrl,
+    haConfigured, normalizeBaseUrl, isLoopbackBaseUrl,
 } from "../haLogic.mjs"
 
 // Shaped like a real `GET /api/states` response, restricted to what an
@@ -207,4 +207,17 @@ test("normalizeBaseUrl", () => {
     assert.equal(normalizeBaseUrl("https://homeassistant.local:8123/"), "https://homeassistant.local:8123")
     assert.equal(normalizeBaseUrl("http://192.168.1.5:8123"), "http://192.168.1.5:8123")
     assert.equal(normalizeBaseUrl(""), "")
+})
+
+test("isLoopbackBaseUrl: only loopback addresses qualify for --insecure", () => {
+    assert.equal(isLoopbackBaseUrl("https://127.0.0.1:8123"), true)
+    assert.equal(isLoopbackBaseUrl("https://127.5.9.200:8123"), true)   // all of 127.0.0.0/8
+    assert.equal(isLoopbackBaseUrl("https://localhost:8123"), true)
+    assert.equal(isLoopbackBaseUrl("https://LOCALHOST:8123"), true)
+    assert.equal(isLoopbackBaseUrl("https://[::1]:8123"), true)
+    assert.equal(isLoopbackBaseUrl("https://homeassistant.local:8123"), false)
+    assert.equal(isLoopbackBaseUrl("https://192.168.1.5:8123"), false)
+    assert.equal(isLoopbackBaseUrl("https://ha.reedweb.net"), false)
+    assert.equal(isLoopbackBaseUrl("not a url"), false)
+    assert.equal(isLoopbackBaseUrl(""), false)
 })

@@ -172,7 +172,7 @@ export function onlineMap(devices) {
 export const COMMANDS = ["status", "devices", "ping", "ha-token", "ha-forget", "ha-status", "update-install", "press-button"]
 
 const VALUE_FLAGS = new Set(["--host", "--port", "--timeout", "--base-url", "--entity"])
-const BOOL_FLAGS = new Set(["--json", "--verify-tls"])
+const BOOL_FLAGS = new Set(["--json", "--insecure"])
 
 export function parseArgs(argv) {
     const out = { cmd: "", positionals: [], json: false }
@@ -197,8 +197,10 @@ usage:
   esphome-dashboard devices [--json]              mDNS discovery only, no health probe
   esphome-dashboard ping    --host IP [--port 6053] [--timeout ms] [--json]
 
-  esphome-dashboard ha-token --base-url URL [--verify-tls]
+  esphome-dashboard ha-token --base-url URL [--insecure]
                                               read a token on stdin, verify it, save it
+                                              (TLS verification is on by default; --insecure
+                                              is only accepted for a loopback base URL)
   esphome-dashboard ha-forget                 delete the saved Home Assistant token
   esphome-dashboard ha-status [--json]        raw update.* entities from Home Assistant
   esphome-dashboard update-install --entity update.xxx [--json]
