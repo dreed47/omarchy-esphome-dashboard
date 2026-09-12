@@ -1,5 +1,47 @@
 # Changelog
 
+## [0.4.6] - 2026-09-11
+
+### Security
+
+Sixth round of marketplace review. 0.4.5 hardened `ha.json` (which holds
+`baseUrl`) with ancestor-directory verification, `O_NOFOLLOW`, atomic
+write, and fsync - but that's still check-then-use: the verification
+step and the actual open/rename/unlink each re-resolve the path by name,
+leaving a directory-swap race between them. Two fixes that close this
+rather than narrow it further:
+
+- **The Home Assistant config is now single-sourced in the OS keyring.**
+  `baseUrl` and `verifyTls` moved into the same Secret Service item as
+  the token (one JSON blob instead of just the bare token), so the
+  keyring - not a file - is authoritative for the whole config. There's
+  nothing left in this plugin's own config directory for a directory
+  swap to redirect on the read path. `ha.json` still exists, but only as
+  a best-effort, non-authoritative local cache; its failure no longer
+  blocks a save or a read.
+- **File operations are now pinned to a directory file descriptor
+  instead of a re-resolved pathname.** Linux resolves
+  `/proc/self/fd/<fd>/<name>` relative to the *already-open* directory
+  behind `<fd>`, not by walking the pathname from `/` again - that gives
+  `openat()`/`renameat()`-relative-to-a-descriptor semantics from plain
+  Node `fs`, with no native addon or helper process. `readHaConfig`'s
+  one-time migration read (the last place a file's `baseUrl` is still
+  trusted, for pre-0.4.6 installs) and the local cache's write/delete
+  paths all go through a single pinned directory fd now, collapsing what
+  used to be several independent pathname re-resolutions (lstat, mkdir,
+  open, rename) into one directory-level open plus fd-relative
+  operations.
+
+Verified live against two real attack simulations: a config-directory
+symlink swap during a save/read no longer leaks anything into the
+attacker's directory (the keyring write still succeeds since it doesn't
+depend on the file at all, and the cache-file write is cleanly refused);
+a legacy pre-keyring file with an attacker-controlled `baseUrl`+token,
+reached through a swapped directory, is refused outright rather than
+migrated into the keyring. Also re-ran the real shell restart / device
+discovery / HA connection check from prior rounds against the new code
+paths - all still work.
+
 ## [0.4.5] - 2026-09-11
 
 ### Security
