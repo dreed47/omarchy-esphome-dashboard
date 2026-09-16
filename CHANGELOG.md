@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.4.7] - 2026-09-16
+
+### Security
+
+Seventh round of marketplace review. 0.4.6 closed the descriptor-identity
+gap on config file I/O and made the keyring authoritative for the HA
+config, but the CI workflow itself was still a supply-chain gap: both
+`actions/checkout@v4` and `actions/setup-node@v4` are mutable tags, so a
+future workflow run could execute code different from what was reviewed.
+
+- Pinned both actions in `.github/workflows/test.yml` to their exact
+  commit SHA (`actions/checkout@08eba0b`, `actions/setup-node@49933ea`),
+  keeping the version as a trailing comment for readability.
+
 ## [0.4.6] - 2026-09-11
 
 ### Security
